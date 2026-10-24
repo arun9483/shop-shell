@@ -189,6 +189,9 @@ importers:
       newrelic:
         specifier: 14.8.0
         version: 14.8.0
+      statuses:
+        specifier: 2.0.2
+        version: 2.0.2
     devDependencies:
       '@types/express':
         specifier: 5.0.6
@@ -196,6 +199,9 @@ importers:
       '@types/newrelic':
         specifier: 9.14.8
         version: 9.14.8
+      '@types/statuses':
+        specifier: 2.0.6
+        version: 2.0.6
       '@types/supertest':
         specifier: 7.2.1
         version: 7.2.1
@@ -988,6 +994,9 @@ packages:
 
   '@types/serve-static@2.2.0':
     resolution: {integrity: sha512-8mam4H1NHLtu7nmtalF7eyBH14QyOASmcxHhSfEoRyr0nP/YdoesEtU+uSRvMe96TW/HPTtkoKqQLl53N7UXMQ==}
+
+  '@types/statuses@2.0.6':
+    resolution: {integrity: sha512-xMAgYwceFhRA2zY+XbEA7mxYbA093wdiW8Vu6gZPGWy9cmOyU9XesH1tNcEWsKFd5Vzrqx5T3D38PWx1FIIXkA==}
 
   '@types/superagent@8.1.11':
     resolution: {integrity: sha512-KA7srSW/HENDtOw9DOqaFLgWuMqN9WgjEw62lh9dpvRaZDkhdOkazASd7X7i2eMUYLHa1U37ZttnePsH5zTDHw==}
@@ -3284,6 +3293,8 @@ snapshots:
     dependencies:
       '@types/http-errors': 2.0.5
       '@types/node': 24.19.2
+
+  '@types/statuses@2.0.6': {}
 
   '@types/superagent@8.1.11':
     dependencies:

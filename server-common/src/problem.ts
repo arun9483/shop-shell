@@ -1,5 +1,6 @@
-import { STATUS_CODES } from 'node:http';
 import type { ErrorRequestHandler, RequestHandler } from 'express';
+// Not `node:http`: with the New Relic agent on, an ES module import of it aborts Node 24.18.
+import statuses from 'statuses';
 import { traceIdOf } from './trace.js';
 
 export class HttpError extends Error {
@@ -20,7 +21,7 @@ export const problemHandler: ErrorRequestHandler = (err: unknown, req, res, _nex
     .type('application/problem+json')
     .json({
       type: 'about:blank',
-      title: STATUS_CODES[status],
+      title: statuses.message[status],
       status,
       ...(status < 500 && err instanceof Error ? { detail: err.message } : {}),
       instance: req.originalUrl,
