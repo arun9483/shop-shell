@@ -1,0 +1,22 @@
+/* Page-wide styles the Shell owns for every unit on the page: the brand's font and base colours,
+   which the design system leaves to the app, and one focus ring. MFEs inherit them. */
+
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* WCAG 2.2 §2.4.11: a visible focus indicator. */
+*:focus-visible {
+  outline: var(--space-2px) solid var(--color-text-accent);
+  outline-offset: var(--space-2px);
+  border-radius: var(--radius-sm);
+}
