@@ -15,7 +15,8 @@ Requirements and decisions are in [arun-mfe-platform](https://github.com/arun948
 
 ## Run
 
-Node 24 and pnpm 11 (`corepack enable`).
+Node 24.22.1 or newer and pnpm 11 (`corepack enable`). Older Node 24 releases abort when the New
+Relic agent is on.
 
 ```sh
 pnpm install

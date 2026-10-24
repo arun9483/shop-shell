@@ -26,8 +26,13 @@ for (const map of maps) {
       await publish({ sourcemapPath: map, javascriptUrl, applicationId, apiKey });
       console.log(`sourcemaps: uploaded ${javascriptUrl}`);
     } catch (error) {
-      // A failed upload (for example, placeholder keys) must not ship the map, so it is still deleted.
-      console.warn(`sourcemaps: upload failed for ${javascriptUrl}: ${error.message}`);
+      if (error.message === 'Conflict') {
+        // Hashed names change with content, so this exact file's map is already in New Relic.
+        console.log(`sourcemaps: already uploaded ${javascriptUrl}`);
+      } else {
+        // A failed upload (for example, placeholder keys) must not ship the map, so it is still deleted.
+        console.warn(`sourcemaps: upload failed for ${javascriptUrl}: ${error.message}`);
+      }
     }
   }
   rmSync(map);
