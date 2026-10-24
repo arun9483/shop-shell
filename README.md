@@ -39,6 +39,11 @@ pnpm lint && pnpm typecheck && pnpm test   # unit tests (Vitest)
 pnpm test:e2e                               # end-to-end (needs `pnpm build`)
 ```
 
+The end-to-end tests start the Shell and every MFE in `tests/e2e/mfes.ts` whose repository is
+checked out next to this one (`../shop-catalog`, `../shop-cart`) or at `SHOP_<NAME>_DIR`, and built.
+`specs/mfes.spec.ts` checks each available MFE the same way; an MFE that is not available shows the
+Shell's fallback. MFE-specific pages are in `specs/<name>.spec.ts`.
+
 ## Test errors
 
 `/test-error?kind=` with `render`, `event`, `promise`, `fes` or `backend` triggers each kind of error

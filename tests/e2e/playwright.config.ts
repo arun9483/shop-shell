@@ -1,7 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
+import { mfes, ports } from './mfes.js';
 
-// Runs against built output: `pnpm build` first. Catalog and Cart are not started here, so their
-// routes show the Shell's fallback until those repositories run on ports 3002 and 3003.
+// Runs against built output: `pnpm build` here and in each MFE repository first. An MFE whose
+// repository is not checked out next to this one (or at SHOP_<NAME>_DIR) and built is not started,
+// so its route shows the Shell's fallback.
 const env = {
   NEW_RELIC_ENABLED: 'false',
   NEW_RELIC_NO_CONFIG_FILE: 'true',
@@ -9,16 +11,29 @@ const env = {
   NEW_RELIC_LOG_LEVEL: 'warn',
 };
 
-export const ports = { router: 3000, fes: 3001, backend: 4001 } as const;
-
-function server(dir: string, port: number, extra: Record<string, string> = {}) {
+function server(
+  cwd: string,
+  port: number,
+  extra: Record<string, string> = {},
+  path = '/health/live',
+) {
   return {
     command: 'pnpm start',
-    cwd: `../../${dir}`,
-    url: `http://localhost:${port}${dir === 'router' ? '/' : '/health/live'}`,
+    cwd,
+    url: `http://localhost:${port}${path}`,
     env: { ...env, PORT: String(port), ...extra },
     reuseExistingServer: !process.env.CI,
   };
+}
+
+function unit(dir: string, fesPort: number, backendPort: number) {
+  return [
+    server(`${dir}/mock-backend`, backendPort),
+    server(`${dir}/fes`, fesPort, {
+      BACKEND_URL: `http://localhost:${backendPort}`,
+      CLIENT_DIST: '../client/dist',
+    }),
+  ];
 }
 
 export default defineConfig({
@@ -29,15 +44,18 @@ export default defineConfig({
   use: { baseURL: `http://localhost:${ports.router}` },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: [
-    server('mock-backend', ports.backend),
-    server('fes', ports.fes, {
-      BACKEND_URL: `http://localhost:${ports.backend}`,
-      CLIENT_DIST: '../client/dist',
-    }),
-    server('router', ports.router, {
-      SHELL_URL: `http://localhost:${ports.fes}`,
-      MFE_CATALOG_URL: 'http://localhost:3002',
-      MFE_CART_URL: 'http://localhost:3003',
-    }),
+    ...unit('../..', ports.fes, ports.backend),
+    ...mfes.filter((m) => m.available).flatMap((m) => unit(m.dir, m.fesPort, m.backendPort)),
+    server(
+      '../../router',
+      ports.router,
+      {
+        SHELL_URL: `http://localhost:${ports.fes}`,
+        ...Object.fromEntries(
+          mfes.map((m) => [`MFE_${m.name.toUpperCase()}_URL`, `http://localhost:${m.fesPort}`]),
+        ),
+      },
+      '/',
+    ),
   ],
 });

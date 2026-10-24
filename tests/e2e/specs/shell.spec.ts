@@ -1,15 +1,6 @@
-import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
-import { ports } from '../playwright.config.js';
-
-/** Records the path of every script the page loads. */
-function scripts(page: Page): string[] {
-  const paths: string[] = [];
-  page.on('request', (req) => {
-    if (req.resourceType() === 'script') paths.push(new URL(req.url()).pathname);
-  });
-  return paths;
-}
+import { expect, test } from '@playwright/test';
+import { ports } from '../mfes.js';
+import { expectNoAxeViolations, origins, scripts, traceId, traceparent } from './helpers.js';
 
 test.describe('lazy loading', () => {
   test('/ loads the home chunk but no other feature and no MFE code', async ({ page }) => {
@@ -41,28 +32,17 @@ test.describe('isolation', () => {
     await page.getByRole('link', { name: 'Help' }).click();
     await expect(page.getByRole('heading', { name: 'Help' })).toBeVisible();
   });
-
-  test('an MFE that cannot load shows its fallback; the Shell keeps working', async ({ page }) => {
-    await page.goto('/catalog');
-    await expect(page.getByText('The catalog section is unavailable')).toBeVisible();
-    await page.getByRole('link', { name: 'Home' }).click();
-    await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
-  });
 });
 
 test.describe('origin and source maps', () => {
   test('the browser talks only to the router origin and New Relic; no map is served', async ({
     page,
   }) => {
-    const origins = new Set<string>();
-    page.on('request', (req) => {
-      const { origin, hostname } = new URL(req.url());
-      if (!hostname.endsWith('.nr-data.net')) origins.add(origin);
-    });
+    const seen = origins(page);
     await page.goto('/');
     await page.getByRole('link', { name: 'Help' }).click();
     await expect(page.getByRole('heading', { name: 'Help' })).toBeVisible();
-    expect([...origins]).toEqual([`http://localhost:${ports.router}`]);
+    expect([...seen]).toEqual([`http://localhost:${ports.router}`]);
 
     const entry = await page.locator('script[type="module"]').getAttribute('src');
     expect(entry).toBeTruthy();
@@ -72,19 +52,17 @@ test.describe('origin and source maps', () => {
 });
 
 test.describe('API conventions', () => {
-  const traceparent = '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01';
-
   test('responses carry the trace ID of the request', async ({ request }) => {
     const res = await request.get('/api/shell/greeting', { headers: { traceparent } });
     expect(res.status()).toBe(200);
-    expect(res.headers().traceresponse).toMatch(/^00-0af7651916cd43dd8448eb211c80319c-/);
+    expect(res.headers().traceresponse).toMatch(new RegExp(`^00-${traceId}-`));
   });
 
   test('an FES error is a problem with the trace ID', async ({ request }) => {
     const res = await request.get('/api/shell/test-error', { headers: { traceparent } });
     expect(res.status()).toBe(500);
     expect(res.headers()['content-type']).toMatch(/^application\/problem\+json/);
-    expect(await res.json()).toMatchObject({ traceId: '0af7651916cd43dd8448eb211c80319c' });
+    expect(await res.json()).toMatchObject({ traceId });
   });
 
   // The FES passes the trace on to its backend through the New Relic agent, which is off here, so
@@ -123,10 +101,7 @@ test.describe('accessibility', () => {
     test(`${path} has no WCAG 2.2 AA violations`, async ({ page }) => {
       await page.goto(path);
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-      const { violations } = await new AxeBuilder({ page })
-        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-        .analyze();
-      expect(violations).toEqual([]);
+      await expectNoAxeViolations(page);
     });
   }
 });
