@@ -1,6 +1,7 @@
 import { Button, Heading, Paragraph } from '@arun-dev/ui';
 import { useState } from 'react';
 import { NavLink, useSearch } from '../routing';
+import { fetchWithTimeout } from '../timeouts';
 import styles from './TestError.module.css';
 
 // Test triggers for error logging and source maps. Each `?kind=` reaches New Relic differently.
@@ -26,7 +27,7 @@ function Trigger({ kind }: { kind: Exclude<Kind, 'render'> }) {
   const [result, setResult] = useState('');
 
   async function call(url: string) {
-    const res = await fetch(url);
+    const res = await fetchWithTimeout(url);
     const { traceId } = (await res.json()) as { traceId?: string };
     setResult(`HTTP ${res.status}, trace ${traceId ?? 'unknown'}`);
   }

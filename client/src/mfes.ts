@@ -1,4 +1,11 @@
-import { addErrorHandler, registerApplication, type LifeCycles } from 'single-spa';
+import {
+  addErrorHandler,
+  registerApplication,
+  setBootstrapMaxTime,
+  setMountMaxTime,
+  type LifeCycles,
+} from 'single-spa';
+import { timeouts, withTimeout } from './timeouts';
 
 export interface Mfe {
   name: string;
@@ -27,11 +34,20 @@ export function activeMfe(pathname: string): Mfe | undefined {
 }
 
 export function registerMfes(): void {
+  // A slow bootstrap or mount fails (dieOnTimeout) instead of only warning, so the fallback shows.
+  setBootstrapMaxTime(timeouts.mfeMount, true);
+  setMountMaxTime(timeouts.mfeMount, true);
+
   for (const mfe of mfes) {
     registerApplication({
       name: mfe.name,
       // The entry comes from the MFE's own build at run time, so Vite must not bundle it.
-      app: () => import(/* @vite-ignore */ mfe.entry) as Promise<LifeCycles>,
+      app: () =>
+        withTimeout(
+          import(/* @vite-ignore */ mfe.entry) as Promise<LifeCycles>,
+          timeouts.mfeLoad,
+          `Loading ${mfe.name}`,
+        ),
       activeWhen: (location) => matches(location.pathname, mfe.routePrefix),
       customProps: () => ({ domElement: document.getElementById(MFE_ROOT_ID) }),
     });

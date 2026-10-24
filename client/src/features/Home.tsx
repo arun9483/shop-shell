@@ -1,18 +1,22 @@
 import { Heading, Paragraph } from '@arun-dev/ui';
 import { useEffect, useState } from 'react';
+import { fetchWithTimeout } from '../timeouts';
 
 export default function Home() {
   const [greeting, setGreeting] = useState<string>();
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/api/shell/greeting', { signal: controller.signal })
-      .then((res) => res.json() as Promise<{ message: string }>)
+    fetchWithTimeout('/api/shell/greeting', controller.signal)
+      .then((res) =>
+        res.ok ? (res.json() as Promise<{ message: string }>) : Promise.reject(new Error()),
+      )
       .then(({ message }) => {
         setGreeting(message);
       })
       .catch(() => {
-        setGreeting(undefined);
+        if (!controller.signal.aborted) setFailed(true);
       });
     return () => {
       controller.abort();
@@ -22,7 +26,9 @@ export default function Home() {
   return (
     <>
       <Heading level={1}>Home</Heading>
-      <Paragraph>{greeting ?? 'Loading…'}</Paragraph>
+      <Paragraph>
+        {failed ? 'The greeting could not be loaded.' : (greeting ?? 'Loading…')}
+      </Paragraph>
     </>
   );
 }

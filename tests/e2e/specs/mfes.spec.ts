@@ -1,20 +1,61 @@
-// Checks every MFE in the Shell's static list the same way, so a new MFE (Cart next) is covered as
+// Checks every MFE in the Shell's static list the same way, so a new MFE is covered as
 // soon as its repository is checked out and built. MFE-specific pages are in <name>.spec.ts.
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { mfes, ports } from '../mfes.js';
 import { expectNoAxeViolations, origins, scripts, traceId, traceparent } from './helpers.js';
 
 for (const mfe of mfes) {
   const { name } = mfe;
 
-  test.describe(`${name}: isolation when it cannot load`, () => {
-    // Blocking the entry in the browser makes this independent of whether the MFE runs.
-    test('its route shows the Shell fallback; the Shell keeps working', async ({ page }) => {
-      await page.route(`**/mfe/${name}/entry.js`, (route) => route.abort());
-      await page.goto(`/${name}`);
-      await expect(page.getByText(`The ${name} section is unavailable`)).toBeVisible();
+  test.describe(`${name}: isolation when it fails`, () => {
+    // Each failure is made in the browser, so these tests do not depend on how the MFE is running.
+    const shellFallback = `The ${name} section is unavailable`;
+
+    async function expectShellStillWorks(page: Page) {
       await page.getByRole('link', { name: 'Help' }).click();
       await expect(page.getByRole('heading', { name: 'Help' })).toBeVisible();
+    }
+
+    test('its entry cannot be downloaded: the Shell fallback shows', async ({ page }) => {
+      await page.route(`**/mfe/${name}/entry.js`, (route) => route.abort());
+      await page.goto(`/${name}`);
+      await expect(page.getByText(shellFallback)).toBeVisible();
+      await expectShellStillWorks(page);
+    });
+
+    test('its entry answers 500: the Shell fallback shows', async ({ page }) => {
+      await page.route(`**/mfe/${name}/entry.js`, (route) =>
+        route.fulfill({ status: 500, contentType: 'text/plain', body: 'Internal Server Error' }),
+      );
+      await page.goto(`/${name}`);
+      await expect(page.getByText(shellFallback)).toBeVisible();
+      await expectShellStillWorks(page);
+    });
+
+    test('its mount throws: the Shell fallback shows', async ({ page }) => {
+      await page.route(`**/mfe/${name}/entry.js`, (route) =>
+        route.fulfill({
+          contentType: 'text/javascript',
+          body: [
+            'export const bootstrap = () => Promise.resolve();',
+            `export const mount = () => Promise.reject(new Error('${name} mount failed'));`,
+            'export const unmount = () => Promise.resolve();',
+          ].join('\n'),
+        }),
+      );
+      await page.goto(`/${name}`);
+      await expect(page.getByText(shellFallback)).toBeVisible();
+      await expectShellStillWorks(page);
+    });
+
+    test('a feature chunk cannot be downloaded: its own fallback shows', async ({ page }) => {
+      test.skip(!mfe.available, `shop-${name} is not checked out next to shop-shell and built`);
+      await page.route(`**/mfe/${name}/assets/TestError-*.js`, (route) => route.abort());
+      await page.goto(`/${name}/test-error`);
+      // The entry mounted, so the MFE's own error boundary catches the failed lazy chunk.
+      await expect(page.locator('#mfe-root [role="alert"]')).toBeVisible();
+      await expect(page.getByText(shellFallback)).toBeHidden();
+      await expectShellStillWorks(page);
     });
   });
 

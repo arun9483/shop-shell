@@ -1,7 +1,16 @@
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import express from 'express';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { HttpError, healthRouter, notFound, problemHandler, traceResponse } from './index.js';
+import {
+  HttpError,
+  forward,
+  healthRouter,
+  notFound,
+  problemHandler,
+  traceResponse,
+} from './index.js';
 
 const version = { name: 'test', version: '1.0.0', commit: 'abc1234', buildTime: 'now' };
 
@@ -84,5 +93,32 @@ describe('healthRouter', () => {
   it('does not set traceresponse on health routes', async () => {
     const res = await request(app()).get('/health/live');
     expect(res.headers.traceresponse).toBeUndefined();
+  });
+});
+
+describe('forward', () => {
+  it('answers 504 when the upstream is slower than the timeout', async () => {
+    const hanging = createServer(() => {
+      // Never answers.
+    });
+    hanging.listen(0);
+    await new Promise((resolve) => hanging.once('listening', resolve));
+    const upstream = `http://localhost:${(hanging.address() as AddressInfo).port}`;
+
+    const app = express();
+    app.use(traceResponse);
+    app.get('/slow', (_req, res) => forward(res, upstream, 100));
+    app.use(problemHandler);
+
+    const started = Date.now();
+    const res = await request(app).get('/slow').set('traceparent', traceparent);
+    expect(Date.now() - started).toBeLessThan(2000);
+    expect(res.status).toBe(504);
+    expect(res.body).toMatchObject({
+      title: 'Gateway Timeout',
+      traceId: '0af7651916cd43dd8448eb211c80319c',
+    });
+    hanging.closeAllConnections();
+    hanging.close();
   });
 });

@@ -1,15 +1,16 @@
 import { Alert, Heading, Paragraph, Spinner } from '@arun-dev/ui';
-import { lazy, Suspense, useEffect, useState, type ComponentType } from 'react';
+import { Suspense, useEffect, useState, type ComponentType } from 'react';
 import styles from './App.module.css';
 import { ErrorBoundary } from './ErrorBoundary';
 import { activeMfe, MFE_ERROR_EVENT, MFE_ROOT_ID } from './mfes';
 import { NavLink, usePathname } from './routing';
+import { lazyWithTimeout } from './timeouts';
 
 // Each Shell feature is its own chunk, loaded on its first visit.
 const features: Record<string, ComponentType> = {
-  '/': lazy(() => import('./features/Home')),
-  '/help': lazy(() => import('./features/Help')),
-  '/test-error': lazy(() => import('./features/TestError')),
+  '/': lazyWithTimeout(() => import('./features/Home')),
+  '/help': lazyWithTimeout(() => import('./features/Help')),
+  '/test-error': lazyWithTimeout(() => import('./features/TestError')),
 };
 
 function useFailedMfes(): ReadonlySet<string> {

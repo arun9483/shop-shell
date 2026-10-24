@@ -28,18 +28,3 @@ test.describe('cart pages', () => {
     await expect(page.getByRole('heading', { name: 'Stoneware mug' })).toBeVisible();
   });
 });
-
-// Until shop-cart is checked out next to shop-shell and built, nothing serves /mfe/cart/, so its
-// routes show the Shell's fallback.
-test.describe('cart before it is built', () => {
-  test.skip(cart.available, 'shop-cart is built');
-
-  for (const path of ['/cart', '/cart/test-error']) {
-    test(`${path} shows the Shell fallback; the Shell keeps working`, async ({ page }) => {
-      await page.goto(path);
-      await expect(page.getByText('The cart section is unavailable')).toBeVisible();
-      await page.getByRole('link', { name: 'Catalog' }).click();
-      await expect(page.getByText('The cart section is unavailable')).toBeHidden();
-    });
-  }
-});
