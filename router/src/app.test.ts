@@ -46,6 +46,9 @@ describe('router', () => {
   it.each([
     ['/mfe/catalog/entry.js', 'catalog'],
     ['/api/catalog/products', 'catalog'],
+    ['/api/catalog', 'catalog'],
+    ['/api/catalog?page=2', 'catalog'],
+    ['/api/catalogue', 'shell'],
     ['/catalog/42', 'shell'],
     ['/api/shell/greeting', 'shell'],
     ['/mfe/catalogue/entry.js', 'shell'],

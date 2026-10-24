@@ -15,7 +15,7 @@ export function mfeRoutes(env: NodeJS.ProcessEnv): Route[] {
 }
 
 /**
- * The one public origin, as a CDN would be in production: `/mfe/<name>/*` and `/api/<name>/*` go
+ * The one public origin, as a CDN would be in production: `/mfe/<name>[/*]` and `/api/<name>[/*]` go
  * to that MFE's FES and everything else to the Shell's FES. Requests and headers, trace headers
  * included, pass through unchanged. Dev only; never deployed.
  */
@@ -33,7 +33,11 @@ export function createApp(shellUrl: string, mfes: Route[]): Express {
       createProxyMiddleware({
         target: url,
         xfwd: true,
-        pathFilter: (path) => path.startsWith(`/mfe/${name}/`) || path.startsWith(`/api/${name}/`),
+        pathFilter: (path) =>
+          [`/mfe/${name}`, `/api/${name}`].some(
+            (prefix) =>
+              path === prefix || path.startsWith(`${prefix}/`) || path.startsWith(`${prefix}?`),
+          ),
       }),
     );
   }
