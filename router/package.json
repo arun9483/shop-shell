@@ -1,0 +1,23 @@
+{
+  "name": "@shop-shell/router",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node --env-file-if-exists=.env --enable-source-maps dist/index.js",
+    "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "express": "5.3.0",
+    "http-proxy-middleware": "4.2.0"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/supertest": "7.2.1",
+    "supertest": "7.3.1",
+    "tsx": "4.23.15"
+  }
+}

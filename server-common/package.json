@@ -1,0 +1,29 @@
+{
+  "name": "@shop-shell/server-common",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "write-version": "bin/write-version.mjs"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "express": "5.3.0",
+    "newrelic": "14.8.0"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/newrelic": "9.14.8",
+    "@types/supertest": "7.2.1",
+    "supertest": "7.3.1"
+  }
+}

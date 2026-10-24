@@ -1,0 +1,35 @@
+.skip {
+  position: absolute;
+  inset-inline-start: var(--space-md);
+  inset-block-start: calc(-1 * var(--space-4xl));
+}
+
+.skip:focus {
+  inset-block-start: var(--space-md);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xl);
+  padding: var(--space-md) var(--space-xl);
+  border-block-end: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+}
+
+.brand {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.nav {
+  display: flex;
+  gap: var(--space-lg);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.main {
+  padding: var(--space-xl);
+}

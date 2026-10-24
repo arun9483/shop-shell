@@ -1,0 +1,31 @@
+{
+  "name": "shop-shell",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.28.5",
+  "scripts": {
+    "build": "pnpm -r --filter=!@shop-shell/e2e run build",
+    "start": "pnpm -r --parallel --filter=./fes --filter=./mock-backend --filter=./router run start",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r --filter=!@shop-shell/e2e run test",
+    "test:e2e": "pnpm --filter @shop-shell/e2e run test"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.19.2",
+    "eslint": "10.13.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.13.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0",
+    "vitest": "5.0.5"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=11.28.5"
+  }
+}

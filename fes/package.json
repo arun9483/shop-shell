@@ -1,0 +1,25 @@
+{
+  "name": "@shop-shell/fes",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && write-version dist",
+    "start": "node --env-file-if-exists=.env --enable-source-maps --import newrelic/esm-loader.mjs -r newrelic dist/index.js",
+    "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@shop-shell/server-common": "workspace:*",
+    "express": "5.3.0",
+    "newrelic": "14.8.0"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/newrelic": "9.14.8",
+    "@types/supertest": "7.2.1",
+    "supertest": "7.3.1",
+    "tsx": "4.23.15"
+  }
+}

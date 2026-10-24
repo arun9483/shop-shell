@@ -1,0 +1,5 @@
+.kinds {
+  display: grid;
+  gap: var(--space-md);
+  padding-inline-start: var(--space-xl);
+}
