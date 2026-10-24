@@ -58,6 +58,13 @@ test.describe('API conventions', () => {
     expect(res.headers().traceresponse).toMatch(new RegExp(`^00-${traceId}-`));
   });
 
+  test('an unknown API route is a 404 problem with the trace ID', async ({ request }) => {
+    const res = await request.get('/api/shell/no-such-route', { headers: { traceparent } });
+    expect(res.status()).toBe(404);
+    expect(res.headers()['content-type']).toMatch(/^application\/problem\+json/);
+    expect(await res.json()).toMatchObject({ status: 404, traceId });
+  });
+
   test('an FES error is a problem with the trace ID', async ({ request }) => {
     const res = await request.get('/api/shell/test-error', { headers: { traceparent } });
     expect(res.status()).toBe(500);

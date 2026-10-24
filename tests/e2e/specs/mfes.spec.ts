@@ -103,6 +103,18 @@ for (const mfe of mfes) {
       expect(await fes.json()).toMatchObject({ traceId });
     });
 
+    test('every API response carries the trace ID of the request', async ({ request }) => {
+      for (const path of mfe.api) {
+        const res = await request.get(path, { headers: { traceparent } });
+        expect(res.status(), path).toBe(200);
+        expect(res.headers().traceresponse, path).toMatch(new RegExp(`^00-${traceId}-`));
+      }
+      const missing = await request.get(`/api/${name}/no-such-route`, { headers: { traceparent } });
+      expect(missing.status()).toBe(404);
+      expect(missing.headers()['content-type']).toMatch(/^application\/problem\+json/);
+      expect(await missing.json()).toMatchObject({ status: 404, traceId });
+    });
+
     test('its FES and backend answer health and version; its client serves version.json', async ({
       request,
     }) => {
