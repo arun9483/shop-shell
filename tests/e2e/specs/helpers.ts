@@ -33,9 +33,16 @@ export const traceId = '0af7651916cd43dd8448eb211c80319c';
 
 const children: ChildProcess[] = [];
 
-/** Starts a built server (`dist/index.js` in `cwd`) with New Relic off, for a test's own use. */
-export function start(cwd: string, env: Record<string, string>): ChildProcess {
-  const child = spawn(process.execPath, ['--enable-source-maps', 'dist/index.js'], {
+/**
+ * Starts a built server (`dist/index.js` in `cwd`, or `args`) with New Relic off, for a test's own
+ * use.
+ */
+export function start(
+  cwd: string,
+  env: Record<string, string>,
+  args: readonly string[] = ['dist/index.js'],
+): ChildProcess {
+  const child = spawn(process.execPath, ['--enable-source-maps', ...args], {
     cwd,
     env: {
       ...process.env,

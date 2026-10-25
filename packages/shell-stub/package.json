@@ -1,0 +1,48 @@
+{
+  "name": "@arun-shop/shell-stub",
+  "version": "0.1.0",
+  "description": "Runs one shop micro frontend standalone: the Shell's page setup, without the Shell app.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arun9483/shop-shell.git",
+    "directory": "packages/shell-stub"
+  },
+  "bin": {
+    "shell-stub": "bin/shell-stub.js"
+  },
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "engines": {
+    "node": ">=24.22.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && vite build",
+    "prepack": "pnpm run build",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p src/client/tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "express": "5.3.0",
+    "http-proxy-middleware": "4.2.0"
+  },
+  "devDependencies": {
+    "@arun-dev/headless": "catalog:",
+    "@arun-dev/tokens": "catalog:",
+    "@arun-dev/ui": "catalog:",
+    "@newrelic/browser-agent": "catalog:",
+    "@types/express": "5.0.6",
+    "@types/supertest": "7.2.1",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "single-spa": "catalog:",
+    "supertest": "7.3.1",
+    "vite": "8.3.5"
+  }
+}

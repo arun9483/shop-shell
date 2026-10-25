@@ -4,10 +4,17 @@ packages:
   - mock-backend
   - router
   - server-common
+  - packages/*
   - tests/e2e
 
-# One React copy for the client and its tests.
+# Shared versions. The Shell client and the Shell stub must load the same design-system CSS and
+# single-spa, so MFEs see the same page whether they run in the Shell or standalone.
 catalog:
+  '@arun-dev/headless': 4.28.1
+  '@arun-dev/tokens': 1.0.0
+  '@arun-dev/ui': 5.14.2
+  '@newrelic/browser-agent': 1.324.0
+  single-spa: 6.0.3
   react: 19.3.1
   react-dom: 19.3.1
   '@types/react': 19.3.0

@@ -10,13 +10,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@arun-dev/headless": "4.28.1",
-    "@arun-dev/tokens": "1.0.0",
-    "@arun-dev/ui": "5.14.2",
-    "@newrelic/browser-agent": "1.324.0",
+    "@arun-dev/headless": "catalog:",
+    "@arun-dev/tokens": "catalog:",
+    "@arun-dev/ui": "catalog:",
+    "@newrelic/browser-agent": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "single-spa": "6.0.3"
+    "single-spa": "catalog:"
   },
   "devDependencies": {
     "@newrelic/publish-sourcemap": "5.1.4",

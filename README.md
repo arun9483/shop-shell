@@ -5,13 +5,15 @@ Requirements and decisions are in [arun-mfe-platform](https://github.com/arun948
 ([vision](https://github.com/arun9483/arun-mfe-platform/blob/main/docs/vision.md),
 [MVP](https://github.com/arun9483/arun-mfe-platform/blob/main/docs/mvp.md)).
 
-| Folder          | What                                                               | Port   |
-| --------------- | ------------------------------------------------------------------ | ------ |
-| `client/`       | React + single-spa root config, built with Vite                    | —      |
-| `fes/`          | Express FES: serves the client, `/api/shell/*`, health and version | `3001` |
-| `mock-backend/` | Dev only. Stand-in for the Shell's backend service                 | `4001` |
-| `router/`       | Dev only. The one public origin, routing by path as a CDN would    | `3000` |
-| `tests/e2e/`    | Playwright + axe against the router; run on demand                 | —      |
+| Folder                 | What                                                                             | Port   |
+| ---------------------- | -------------------------------------------------------------------------------- | ------ |
+| `client/`              | React + single-spa root config, built with Vite                                  | —      |
+| `fes/`                 | Express FES: serves the client, `/api/shell/*`, health and version               | `3001` |
+| `mock-backend/`        | Dev only. Stand-in for the Shell's backend service                               | `4001` |
+| `router/`              | Dev only. The one public origin, routing by path as a CDN would                  | `3000` |
+| `server-common/`       | Trace context, problem+json, health and version for the servers                  | —      |
+| `packages/shell-stub/` | Published as `@arun-shop/shell-stub`: runs one MFE standalone, without the Shell | —      |
+| `tests/e2e/`           | Playwright + axe against the router; run on demand                               | —      |
 
 ## Run
 
