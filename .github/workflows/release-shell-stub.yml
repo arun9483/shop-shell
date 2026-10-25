@@ -20,6 +20,8 @@ jobs:
         with:
           node-version-file: .node-version
           registry-url: https://registry.npmjs.org
+          # pnpm comes from corepack in the next step, so setup-node must not look for it yet.
+          package-manager-cache: false
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - name: Check the tag matches the package version
