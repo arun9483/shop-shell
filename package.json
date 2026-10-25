@@ -11,9 +11,13 @@
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm -r --filter=!@shop-shell/e2e run test",
-    "test:e2e": "pnpm --filter @shop-shell/e2e run test"
+    "test:e2e": "pnpm --filter @shop-shell/e2e run test",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm --filter @arun-shop/shell-stub build && changeset publish"
   },
   "devDependencies": {
+    "@changesets/cli": "3.0.3",
     "@eslint/js": "10.0.1",
     "@types/node": "24.19.2",
     "eslint": "10.13.0",

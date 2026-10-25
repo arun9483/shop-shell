@@ -44,6 +44,8 @@ same standalone as in the Shell. Requires Node 24.22.1 or newer.
 
 ## Release
 
-From `shop-shell`: bump `version` in `packages/shell-stub/package.json`, commit, then push the tag
-`shell-stub-v<version>`. `.github/workflows/release-shell-stub.yml` publishes it with npm trusted
-publishing.
+Releases are made with [changesets](https://github.com/changesets/changesets), as in
+[arun-design-system](https://github.com/arun9483/arun-design-system). In `shop-shell`, with a change to
+this package, run `pnpm changeset` and describe it. When it reaches `main`, the Release workflow
+(`.github/workflows/release.yml`) opens a version PR; merging that PR publishes to npm with trusted
+publishing and provenance, tags `@arun-shop/shell-stub@<version>` and creates a GitHub release.

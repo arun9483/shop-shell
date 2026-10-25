@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: write
+  pull-requests: write
+  # npm trusted publishing: the job's OIDC token is exchanged with npm for a
+  # short-lived publish credential, so no npm token is stored anywhere.
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # pnpm only (the version from packageManager): Node and its pnpm cache stay with
+      # actions/setup-node, and the install is the frozen one below.
+      - uses: pnpm/setup@v3
+        with:
+          node-version-file: false
+          install: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Pinned to a release: unlike v1, v2 has no moving major tag.
+      # v2 works only with @changesets/cli 3. It learns what was published from the
+      # CHANGESETS_OUTPUT file `changeset publish` writes, so tags and GitHub releases
+      # follow every publish. The GitHub token defaults to this job's; the release
+      # commit, PR and tags go through the GitHub API and are signed.
+      - name: Create release PR or publish to npm
+        uses: changesets/action@v2.1.2
+        with:
+          publish-script: pnpm release
+          version-script: pnpm run version-packages
+          commit-message: 'chore(release): version packages'
+          pr-title: 'chore(release): version packages'
+        # No npm token anywhere: `pnpm publish` (pnpm 11 publishes itself, without the
+        # npm CLI) exchanges this job's OIDC token for a publish credential, and
+        # @arun-shop/shell-stub's publishConfig.provenance attaches provenance. Its
+        # trusted publisher on npmjs.com names this repository and this workflow file,
+        # release.yml, and must allow direct publishing: rename the file and publishing
+        # stops. Only @arun-shop/shell-stub is published; every other package is private.
