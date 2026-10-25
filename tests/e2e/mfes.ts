@@ -66,11 +66,18 @@ export const mfes: readonly Mfe[] = [
     },
     true,
   ),
-  mfe('cart', 3003, 4003, ['/api/cart'], {
-    page: '/cart',
-    api: '/api/cart',
-    message: 'The cart could not be loaded.',
-  }),
+  mfe(
+    'cart',
+    3003,
+    4003,
+    ['/api/cart'],
+    {
+      page: '/cart',
+      api: '/api/cart',
+      message: 'The cart could not be loaded.',
+    },
+    true,
+  ),
 ];
 
 export function byName(name: string): Mfe {
