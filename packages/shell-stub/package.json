@@ -1,13 +1,24 @@
 {
   "name": "@arun-shop/shell-stub",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Runs one shop micro frontend standalone: the Shell's page setup, without the Shell app.",
+  "keywords": [
+    "micro-frontends",
+    "single-spa",
+    "shell",
+    "standalone",
+    "arun-shop"
+  ],
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/arun9483/shop-shell.git",
     "directory": "packages/shell-stub"
+  },
+  "homepage": "https://github.com/arun9483/shop-shell/tree/main/packages/shell-stub#readme",
+  "bugs": {
+    "url": "https://github.com/arun9483/shop-shell/issues"
   },
   "bin": {
     "shell-stub": "bin/shell-stub.js"
