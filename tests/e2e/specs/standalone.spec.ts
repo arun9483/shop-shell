@@ -98,3 +98,42 @@ for (const [index, mfe] of mfes.entries()) {
     });
   });
 }
+
+for (const [index, mfe] of mfes.entries()) {
+  const { name } = mfe;
+  const stub = `http://localhost:${3700 + index}`;
+
+  test.describe(`${name} standalone, development mode (HMR)`, () => {
+    test.skip(!mfe.available || !mfe.devMode, `shop-${name} has no standalone development mode`);
+
+    test.beforeAll(async () => {
+      // One process: the stub runs the MFE's own Vite, from its client project.
+      start(stubDir, {}, [
+        'bin/shell-stub.js',
+        '--name',
+        name,
+        '--mfe-url',
+        `http://localhost:${mfe.fesPort}`,
+        '--port',
+        String(3700 + index),
+        '--dev',
+        '--dev-root',
+        `${mfe.dir}/client`,
+      ]);
+      await untilUp(`${stub}/${name}`);
+    });
+
+    test('runs its source through its own Vite with HMR on the stub origin', async ({ page }) => {
+      const loaded = scripts(page);
+      const sockets: string[] = [];
+      page.on('websocket', (ws) => sockets.push(ws.url()));
+      await page.goto(`${stub}/${name}`);
+      await expect(page.locator('#mfe-root h1')).toBeVisible();
+      expect(loaded).toContain(`/mfe/${name}/@vite/client`);
+      expect(loaded).toContain(`/mfe/${name}/src/entry.tsx`);
+      expect(loaded).not.toContain(`/mfe/${name}/entry.js`);
+      const ws = `${stub.replace('http', 'ws')}/mfe/${name}/`;
+      await expect.poll(() => sockets.some((url) => url.startsWith(ws))).toBe(true);
+    });
+  });
+}

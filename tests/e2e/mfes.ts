@@ -20,6 +20,8 @@ export interface Mfe {
   api: readonly string[];
   /** A page whose first API call can be slowed, and what it says when that call times out. */
   slowApi: SlowApi;
+  /** Whether it runs in the Shell stub's development mode (HMR): its client is a Vite project. */
+  devMode: boolean;
   /** True when the repository is checked out next to this one (or at SHOP_<NAME>_DIR) and built. */
   available: boolean;
 }
@@ -30,6 +32,7 @@ function mfe(
   backendPort: number,
   api: readonly string[],
   slowApi: SlowApi,
+  devMode = false,
 ): Mfe {
   const dir = resolve(
     process.env[`SHOP_${name.toUpperCase()}_DIR`] ??
@@ -37,16 +40,32 @@ function mfe(
   );
   const available =
     existsSync(`${dir}/fes/dist/index.js`) && existsSync(`${dir}/client/dist/entry.js`);
-  return { name, dir, fesPort, backendPort, api, slowApi, available };
+  return {
+    name,
+    dir,
+    fesPort,
+    backendPort,
+    api,
+    slowApi,
+    available,
+    devMode,
+  };
 }
 
 /** Every MFE in the Shell's static list. An unavailable one shows the Shell's fallback. */
 export const mfes: readonly Mfe[] = [
-  mfe('catalog', 3002, 4002, ['/api/catalog/products', '/api/catalog/products/mug'], {
-    page: '/catalog',
-    api: '/api/catalog/products',
-    message: 'Products could not be loaded.',
-  }),
+  mfe(
+    'catalog',
+    3002,
+    4002,
+    ['/api/catalog/products', '/api/catalog/products/mug'],
+    {
+      page: '/catalog',
+      api: '/api/catalog/products',
+      message: 'Products could not be loaded.',
+    },
+    true,
+  ),
   mfe('cart', 3003, 4003, ['/api/cart'], {
     page: '/cart',
     api: '/api/cart',

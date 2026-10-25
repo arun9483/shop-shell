@@ -42,10 +42,28 @@ function show(text: string | null): void {
   message.hidden = text === null;
 }
 
+// Development mode: the MFE's Vite dev server serves its source. Its HMR client and React Fast
+// Refresh need this setup, which Vite otherwise puts in an app's own index.html.
+if (config.devEntry) {
+  const base = `/mfe/${name}`;
+  const refresh = (await import(/* @vite-ignore */ `${base}/@react-refresh`)) as {
+    default: { injectIntoGlobalHook: (target: Window) => void };
+  };
+  refresh.default.injectIntoGlobalHook(window);
+  Object.assign(window, {
+    $RefreshReg$: () => undefined,
+    $RefreshSig$: () => (type: unknown) => type,
+    __vite_plugin_react_preamble_installed__: true,
+  });
+  await import(/* @vite-ignore */ `${base}/@vite/client`);
+}
+
+// The built entry, or the source entry in development mode, through this stub's proxy.
+const entry = config.devEntry ? `/mfe/${name}/${config.devEntry}` : `/mfe/${name}/entry.js`;
+
 registerApplication({
   name,
-  // The entry comes from the MFE's own build, through this stub's proxy.
-  app: () => import(/* @vite-ignore */ `/mfe/${name}/entry.js`) as Promise<LifeCycles>,
+  app: () => import(/* @vite-ignore */ entry) as Promise<LifeCycles>,
   activeWhen: (location) => matches(location.pathname),
   customProps: () => ({ domElement: mfeRoot }),
 });

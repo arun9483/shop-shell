@@ -1,12 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import express, { type Express } from 'express';
+import express, { type Express, type RequestHandler } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import type { StubConfig } from '../config.js';
 
 export interface StubOptions extends StubConfig {
   /** The MFE's FES, e.g. http://localhost:3002. */
   mfeUrl: string;
+  /**
+   * Development mode: the MFE's Vite dev server, running in this process, serves /mfe/<name>
+   * instead of the FES. It sees the full path, base included.
+   */
+  devMiddleware?: RequestHandler;
   /** The built stub page (dist/client). */
   clientDir: string;
 }
@@ -21,23 +26,27 @@ function configScript(config: StubConfig): string {
 
 /**
  * One origin for one MFE, as the router is for the whole shop: `/mfe/<name>` and `/api/<name>` go
- * to the MFE's FES, `/__stub/` serves the stub page's files, and every other page is the stub page.
+ * to the MFE's FES (its files come from its Vite dev server in development mode), `/__stub/` serves
+ * the stub page's files, and every other page is the stub page.
  */
-export function createApp({ mfeUrl, clientDir, ...config }: StubOptions): Express {
+export function createApp({ mfeUrl, devMiddleware, clientDir, ...config }: StubOptions): Express {
   const app = express();
   app.disable('x-powered-by');
 
-  const prefixes = [`/mfe/${config.name}`, `/api/${config.name}`];
+  const under = (prefix: string) => (path: string) =>
+    path === prefix || path.startsWith(`${prefix}/`) || path.startsWith(`${prefix}?`);
+  const isMfeFile = under(`/mfe/${config.name}`);
+
+  if (devMiddleware) {
+    app.use((req, res, next) => {
+      if (isMfeFile(req.path)) devMiddleware(req, res, next);
+      else next();
+    });
+  } else {
+    app.use(createProxyMiddleware({ target: mfeUrl, xfwd: true, pathFilter: isMfeFile }));
+  }
   app.use(
-    createProxyMiddleware({
-      target: mfeUrl,
-      xfwd: true,
-      pathFilter: (path) =>
-        prefixes.some(
-          (prefix) =>
-            path === prefix || path.startsWith(`${prefix}/`) || path.startsWith(`${prefix}?`),
-        ),
-    }),
+    createProxyMiddleware({ target: mfeUrl, xfwd: true, pathFilter: under(`/api/${config.name}`) }),
   );
 
   app.use(

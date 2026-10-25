@@ -73,3 +73,33 @@ describe('shell stub', () => {
     expect(res.text).not.toContain('</script><b>');
   });
 });
+
+describe('shell stub in development mode', () => {
+  // Stands in for Vite's middleware: it answers MFE files with the full path it got.
+  const devStub = () =>
+    createApp({
+      name: 'catalog',
+      routePrefix: '/catalog',
+      mfeUrl,
+      devEntry: 'src/entry.tsx',
+      devMiddleware: (req, res) => {
+        res.json({ from: 'vite', path: req.originalUrl });
+      },
+      clientDir,
+    });
+
+  it('serves MFE files from Vite, with the base still in the path, and the API from the FES', async () => {
+    expect((await request(devStub()).get('/mfe/catalog/src/entry.tsx')).body).toEqual({
+      from: 'vite',
+      path: '/mfe/catalog/src/entry.tsx',
+    });
+    expect((await request(devStub()).get('/api/catalog/products')).body).toMatchObject({
+      path: '/api/catalog/products',
+    });
+  });
+
+  it('tells the page which source entry to load', async () => {
+    const res = await request(devStub()).get('/catalog');
+    expect(res.text).toContain('"devEntry":"src/entry.tsx"');
+  });
+});
