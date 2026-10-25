@@ -5,7 +5,9 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import {
   HttpError,
+  backendAuth,
   forward,
+  googleBackendAuth,
   healthRouter,
   notFound,
   problemHandler,
@@ -120,5 +122,35 @@ describe('forward', () => {
     });
     hanging.closeAllConnections();
     hanging.close();
+  });
+});
+
+describe('googleBackendAuth', () => {
+  it('gets an identity token for the backend from the metadata server, and reuses it', async () => {
+    const asked: { audience: unknown; format: unknown; flavor: unknown }[] = [];
+    const metadata = express();
+    metadata.get('/instance/service-accounts/default/identity', (req, res) => {
+      asked.push({
+        audience: req.query.audience,
+        format: req.query.format,
+        flavor: req.get('Metadata-Flavor'),
+      });
+      res.send('token-123');
+    });
+    const server = metadata.listen(0);
+    await new Promise((resolve) => server.once('listening', resolve));
+    const url = `http://localhost:${(server.address() as AddressInfo).port}`;
+
+    const headers = googleBackendAuth('https://shell-backend.example', url);
+    expect(await headers()).toEqual({ Authorization: 'Bearer token-123' });
+    expect(await headers()).toEqual({ Authorization: 'Bearer token-123' });
+    expect(asked).toEqual([
+      { audience: 'https://shell-backend.example', format: 'full', flavor: 'Google' },
+    ]);
+    server.close();
+  });
+
+  it('is off unless BACKEND_AUTH is google', async () => {
+    expect(await backendAuth(undefined, 'https://x.example')()).toEqual({});
   });
 });

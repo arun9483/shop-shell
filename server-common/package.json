@@ -2,6 +2,10 @@
   "name": "@shop-shell/server-common",
   "private": true,
   "type": "module",
+  "files": [
+    "dist",
+    "bin"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

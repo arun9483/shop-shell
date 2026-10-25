@@ -2,6 +2,8 @@ import { join } from 'node:path';
 import express, { type Express } from 'express';
 import {
   forward,
+  noBackendAuth,
+  type BackendHeaders,
   healthRouter,
   notFound,
   problemHandler,
@@ -17,13 +19,22 @@ export interface FesConfig {
   version: VersionInfo;
   /** How long a backend call may take: a slower API call is a 504, a slower readiness check fails. */
   backendTimeoutMs: number;
+  /** Auth for backend calls: a Google identity token on Cloud Run, nothing locally. */
+  backendHeaders?: BackendHeaders;
 }
 
 const NO_CACHE = 'no-cache';
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 
-async function backendReady(backendUrl: string, timeoutMs: number): Promise<boolean> {
-  const res = await fetch(`${backendUrl}/health/ready`, { signal: AbortSignal.timeout(timeoutMs) });
+async function backendReady(
+  backendUrl: string,
+  timeoutMs: number,
+  headers: BackendHeaders,
+): Promise<boolean> {
+  const res = await fetch(`${backendUrl}/health/ready`, {
+    headers: await headers(),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
   return res.ok;
 }
 
@@ -32,17 +43,25 @@ export function createApp({
   clientDist,
   version,
   backendTimeoutMs,
+  backendHeaders = noBackendAuth,
 }: FesConfig): Express {
   const app = express();
   app.disable('x-powered-by');
-  app.use(healthRouter({ version, ready: () => backendReady(backendUrl, backendTimeoutMs) }));
+  app.use(
+    healthRouter({
+      version,
+      ready: () => backendReady(backendUrl, backendTimeoutMs, backendHeaders),
+    }),
+  );
 
   const api = express.Router();
   api.use(traceResponse);
-  api.get('/greeting', (_req, res) => forward(res, `${backendUrl}/greeting`, backendTimeoutMs));
+  api.get('/greeting', async (_req, res) =>
+    forward(res, `${backendUrl}/greeting`, backendTimeoutMs, await backendHeaders()),
+  );
   api.get('/test-error', async (req, res) => {
     if (req.query.in === 'backend') {
-      await forward(res, `${backendUrl}/test-error`, backendTimeoutMs);
+      await forward(res, `${backendUrl}/test-error`, backendTimeoutMs, await backendHeaders());
       return;
     }
     throw new Error('Shell FES test error');

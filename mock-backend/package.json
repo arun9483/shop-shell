@@ -2,6 +2,9 @@
   "name": "@shop-shell/mock-backend",
   "private": true,
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "version": "0.1.0",
   "scripts": {
     "build": "tsc -p tsconfig.build.json && write-version dist",

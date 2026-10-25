@@ -1,0 +1,16 @@
+// The shop's public origin. `--env staging` deploys the Worker `shop-staging`; the FES origins are
+// passed with `--var` at deploy, never kept here.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "shop",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-19",
+  "workers_dev": true,
+  "preview_urls": false,
+  "env": {
+    "staging": {
+      "workers_dev": true,
+      "preview_urls": false,
+    },
+  },
+}

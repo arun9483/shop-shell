@@ -1,0 +1,170 @@
+# Deploys the Shell (its mock backend, then its FES with the built client) to staging on Cloud Run.
+# Runs on every push to main after the checks pass, or by hand from any branch (Run workflow).
+# The Worker (edge/) has its own workflow, deploy-edge-staging.yml.
+# Every identifier comes from repository and `staging` environment variables and secrets.
+name: Deploy to staging
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['edge/**', '.github/workflows/deploy-edge-staging.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  # Workload identity federation: GitHub's OIDC token is exchanged for short-lived Google
+  # credentials, so no Google key is stored anywhere.
+  id-token: write
+
+env:
+  UNIT: shell
+  ENVIRONMENT: staging
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          node-version-file: false
+          install: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Built first: the servers' types come from server-common's build.
+      - run: pnpm build
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      REGION: ${{ vars.GCP_REGION }}
+      PROJECT: ${{ vars.GCP_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          node-version-file: false
+          install: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # The client is built for staging: it reports to the staging browser app, and its source maps
+      # are uploaded against staging's public origin, then deleted.
+      - name: Build for staging
+        run: pnpm build
+        env:
+          PUBLIC_ORIGIN: ${{ vars.PUBLIC_ORIGIN }}
+          VITE_NEW_RELIC_ACCOUNT_ID: ${{ vars.VITE_NEW_RELIC_ACCOUNT_ID }}
+          VITE_NEW_RELIC_TRUST_KEY: ${{ vars.VITE_NEW_RELIC_TRUST_KEY }}
+          VITE_NEW_RELIC_AGENT_ID: ${{ vars.VITE_NEW_RELIC_AGENT_ID }}
+          VITE_NEW_RELIC_LICENSE_KEY: ${{ vars.VITE_NEW_RELIC_LICENSE_KEY }}
+          VITE_NEW_RELIC_APPLICATION_ID: ${{ vars.VITE_NEW_RELIC_APPLICATION_ID }}
+          NEW_RELIC_USER_API_KEY: ${{ secrets.NEW_RELIC_USER_API_KEY }}
+
+      - name: Assemble the images' contents
+        run: |
+          pnpm --filter "@shop-$UNIT/fes" deploy --prod out/fes
+          pnpm --filter "@shop-$UNIT/mock-backend" deploy --prod out/backend
+          cp -R client/dist out/fes/client-dist
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER }}
+      - uses: google-github-actions/setup-gcloud@v3.0.1
+
+      - name: Build and push the images
+        run: |
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+          base="$REGION-docker.pkg.dev/$PROJECT/shop"
+          for part in fes backend; do
+            image="$base/$UNIT-$part:$GITHUB_SHA"
+            docker build -t "$image" -f deploy/Dockerfile "out/$part"
+            docker push --quiet "$image"
+          done
+
+      # Settings go through a file: some values (New Relic's ignore rules) contain commas.
+      - name: Deploy the mock backend (private)
+        run: |
+          service="$UNIT-backend-$ENVIRONMENT"
+          cat > backend-env.yaml <<EOF
+          NEW_RELIC_ENABLED: "true"
+          NEW_RELIC_APP_NAME: "$service"
+          NEW_RELIC_NO_CONFIG_FILE: "true"
+          NEW_RELIC_LOG: "stdout"
+          NEW_RELIC_LOG_LEVEL: "warn"
+          NEW_RELIC_DISTRIBUTED_TRACING_ENABLED: "true"
+          NEW_RELIC_IGNORING_RULES: "^/health/,^/version\$"
+          NEW_RELIC_DISTRIBUTED_TRACING_SAMPLER_REMOTE_PARENT_SAMPLED: "always_on"
+          EOF
+          gcloud run deploy "$service" --project "$PROJECT" --region "$REGION" --quiet \
+            --image "$REGION-docker.pkg.dev/$PROJECT/shop/$UNIT-backend:$GITHUB_SHA" \
+            --service-account "shop-backend@$PROJECT.iam.gserviceaccount.com" \
+            --no-allow-unauthenticated --min-instances 0 --max-instances 1 \
+            --env-vars-file backend-env.yaml \
+            --set-secrets NEW_RELIC_LICENSE_KEY=new-relic-license-key:latest
+          # Only this unit's FES may call it.
+          gcloud run services add-iam-policy-binding "$service" --project "$PROJECT" --region "$REGION" \
+            --member "serviceAccount:$UNIT-fes@$PROJECT.iam.gserviceaccount.com" \
+            --role roles/run.invoker --quiet > /dev/null
+          url=$(gcloud run services describe "$service" --project "$PROJECT" --region "$REGION" \
+            --format 'value(status.url)')
+          echo "BACKEND_URL=$url" >> "$GITHUB_ENV"
+
+      - name: Deploy the FES (public)
+        run: |
+          service="$UNIT-fes-$ENVIRONMENT"
+          cat > fes-env.yaml <<EOF
+          BACKEND_URL: "$BACKEND_URL"
+          BACKEND_AUTH: "google"
+          BACKEND_TIMEOUT_MS: "3000"
+          CLIENT_DIST: "/app/client-dist"
+          NEW_RELIC_ENABLED: "true"
+          NEW_RELIC_APP_NAME: "$service"
+          NEW_RELIC_NO_CONFIG_FILE: "true"
+          NEW_RELIC_LOG: "stdout"
+          NEW_RELIC_LOG_LEVEL: "warn"
+          NEW_RELIC_DISTRIBUTED_TRACING_ENABLED: "true"
+          NEW_RELIC_IGNORING_RULES: "^/health/,^/version\$,^/assets/"
+          NEW_RELIC_DISTRIBUTED_TRACING_SAMPLER_REMOTE_PARENT_SAMPLED: "always_on"
+          EOF
+          gcloud run deploy "$service" --project "$PROJECT" --region "$REGION" --quiet \
+            --image "$REGION-docker.pkg.dev/$PROJECT/shop/$UNIT-fes:$GITHUB_SHA" \
+            --service-account "$UNIT-fes@$PROJECT.iam.gserviceaccount.com" \
+            --allow-unauthenticated --min-instances 0 --max-instances 1 \
+            --env-vars-file fes-env.yaml \
+            --set-secrets NEW_RELIC_LICENSE_KEY=new-relic-license-key:latest
+          url=$(gcloud run services describe "$service" --project "$PROJECT" --region "$REGION" \
+            --format 'value(status.url)')
+          echo "FES_URL=$url" >> "$GITHUB_ENV"
+
+      # Ready means the FES is up and can call its private backend with its identity token.
+      - name: Check the deployed FES
+        run: |
+          failed=0
+          for path in /health/ready /api/$UNIT/greeting /; do
+            status=000
+            for attempt in 1 2 3 4 5 6; do
+              status=$(curl -s -o /dev/null -w '%{http_code}' "$FES_URL$path" || true)
+              [ "$status" = 200 ] && break
+              sleep 10
+            done
+            echo "$path -> $status"
+            [ "$status" = 200 ] || failed=1
+          done
+          exit $failed

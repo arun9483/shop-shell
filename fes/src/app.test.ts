@@ -102,3 +102,28 @@ describe('shell FES health', () => {
     expect((await request(down).get('/health/ready')).status).toBe(503);
   });
 });
+
+describe('shell FES backend auth', () => {
+  it('sends its backend headers on API calls and readiness checks', async () => {
+    const seen: (string | undefined)[] = [];
+    const privateBackend = express();
+    privateBackend.use((req, res) => {
+      seen.push(req.get('authorization'));
+      res.json({ ok: true });
+    });
+    const server = privateBackend.listen(0);
+    await new Promise((resolve) => server.once('listening', resolve));
+    const url = `http://localhost:${(server.address() as AddressInfo).port}`;
+    const app = createApp({
+      backendUrl: url,
+      clientDist,
+      version,
+      backendTimeoutMs: 1000,
+      backendHeaders: () => Promise.resolve({ Authorization: 'Bearer token-123' }),
+    });
+    await request(app).get('/api/shell/greeting');
+    await request(app).get('/health/ready');
+    expect(seen).toEqual(['Bearer token-123', 'Bearer token-123']);
+    server.close();
+  });
+});

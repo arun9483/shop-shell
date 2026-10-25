@@ -3,6 +3,7 @@ packages:
   - fes
   - mock-backend
   - router
+  - edge
   - server-common
   - packages/*
   - tests/e2e
@@ -31,3 +32,5 @@ allowBuilds:
   '@newrelic/fn-inspect': false
   '@newrelic/native-metrics': false
   protobufjs: false
+  # Cloudflare's local runtime, used only by `wrangler dev`; deploys just bundle the Worker.
+  workerd: false

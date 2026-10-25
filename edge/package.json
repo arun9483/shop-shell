@@ -1,0 +1,13 @@
+{
+  "name": "@shop-shell/edge",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "wrangler": "4.152.0"
+  }
+}

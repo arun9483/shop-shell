@@ -34,6 +34,27 @@ uploads fail, but the maps are still deleted.
 Catalog and Cart run from their own repositories on ports `3002` and `3003`. Until they do, their
 routes show the Shell's fallback.
 
+## Deploy
+
+`.github/workflows/deploy-staging.yml` deploys the Shell to staging on Cloud Run: on every push to
+`main` after lint, typecheck and tests pass, or by hand from any branch (**Actions → Deploy to staging →
+Run workflow**). It builds the client for staging (uploading its source maps), builds one image for the
+mock backend and one for the FES (`deploy/Dockerfile`), deploys the backend as a private service that
+only this FES may call, then the FES, and checks the FES is ready.
+
+`edge/` is the Cloudflare Worker that is the shop's one public origin (Worker `shop-staging` on
+`workers.dev`). Like the dev router, it sends `/mfe/<name>` and `/api/<name>` to that MFE's FES and
+everything else to the Shell's FES, and hides `/health` and `/version`. It has its own workflow,
+`.github/workflows/deploy-edge-staging.yml`, run on a push to `main` that changes `edge/` or by hand:
+the FES URLs are fixed per service, so unit deploys do not redeploy it. It reads those URLs from Cloud
+Run at deploy (deploy every unit's FES first) and ends by checking every unit through the public origin.
+
+The workflow reads every identifier from GitHub: repository variables `GCP_PROJECT_ID`, `GCP_REGION`,
+`GCP_WIF_PROVIDER`, `GCP_DEPLOYER`, `CLOUDFLARE_ACCOUNT_ID`; the secret `CLOUDFLARE_API_TOKEN`;
+`staging` environment variables `PUBLIC_ORIGIN` and `VITE_NEW_RELIC_*`; and the secret
+`NEW_RELIC_USER_API_KEY`. No Google key is stored: GitHub Actions signs in with workload identity
+federation.
+
 ## Check
 
 ```sh
