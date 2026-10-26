@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -36,6 +36,7 @@ beforeAll(async () => {
 
 afterAll(() => {
   backend.close();
+  rmSync(clientDist, { recursive: true, force: true });
 });
 
 const app = () => createApp({ backendUrl, clientDist, version, backendTimeoutMs: 1000 });

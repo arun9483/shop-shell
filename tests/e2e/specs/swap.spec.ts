@@ -1,7 +1,7 @@
 // MVP criterion 1: pointing the router's MFE_<NAME>_URL at another build swaps that MFE without
 // rebuilding the Shell. For each available MFE this starts build B (a copy of the build with its own
 // version) behind its own FES, and a second router that points at it.
-import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { expect, test } from '@playwright/test';
@@ -9,7 +9,11 @@ import { mfes, ports } from '../mfes.js';
 import { start, stopAll, untilUp } from './helpers.js';
 
 const routerB = 3100;
-test.afterAll(stopAll);
+const builds: string[] = [];
+test.afterAll(() => {
+  stopAll();
+  for (const dir of builds) rmSync(dir, { recursive: true, force: true });
+});
 
 for (const [index, mfe] of mfes.entries()) {
   const { name } = mfe;
@@ -23,6 +27,7 @@ for (const [index, mfe] of mfes.entries()) {
 
     // Build B: the same files under a version of its own.
     const distB = mkdtempSync(join(tmpdir(), `${name}-build-b-`));
+    builds.push(distB);
     cpSync(`${mfe.dir}/client/dist`, distB, { recursive: true });
     const versionFile = join(distB, 'version.json');
     const version = JSON.parse(readFileSync(versionFile, 'utf8')) as Record<string, string>;
