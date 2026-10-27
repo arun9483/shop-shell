@@ -1,5 +1,11 @@
 # @arun-shop/shell-stub
 
+## 0.3.0
+
+### Minor Changes
+
+- 7bf5141: Add the Shell's theme switcher (light, dark or system) to the stub page, so an MFE can be checked in every theme standalone. The choice is kept for the next visit and applied before the first paint.
+
 ## 0.2.0
 
 ### Minor Changes

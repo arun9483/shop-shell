@@ -1,6 +1,6 @@
 {
   "name": "@arun-shop/shell-stub",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Runs one shop micro frontend standalone: the Shell's page setup, without the Shell app.",
   "keywords": [
     "micro-frontends",
