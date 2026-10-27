@@ -91,6 +91,20 @@ for (const [index, mfe] of mfes.entries()) {
       });
     }
 
+    test('switches the theme as the Shell does, and keeps it', async ({ page }) => {
+      await page.goto(`${stub}/${name}`);
+      await expect(page.locator('#mfe-root h1')).toBeVisible();
+      const theme = page.getByRole('combobox', { name: 'Theme' });
+      await expect(theme).toHaveValue('system');
+      await theme.selectOption('dark');
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+      await page.reload();
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+      await expect(theme).toHaveValue('dark');
+      await expect(page.locator('#mfe-root h1')).toBeVisible();
+      await expectNoAxeViolations(page);
+    });
+
     test(`/${name} has no WCAG 2.2 AA violations`, async ({ page }) => {
       await page.goto(`${stub}/${name}`);
       await expect(page.locator('#mfe-root h1')).toBeVisible();

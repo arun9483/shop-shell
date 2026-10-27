@@ -62,6 +62,18 @@ for (const mfe of mfes) {
   test.describe(name, () => {
     test.skip(!mfe.available, `shop-${name} is not checked out next to shop-shell and built`);
 
+    test('follows the Shell theme, with no WCAG 2.2 AA violations in dark', async ({ page }) => {
+      await page.goto(`/${name}`);
+      await expect(page.locator('#mfe-root h1')).toBeVisible();
+      const heading = () =>
+        page.locator('#mfe-root h1').evaluate((element) => getComputedStyle(element).color);
+      await page.getByRole('combobox', { name: 'Theme' }).selectOption('light');
+      const light = await heading();
+      await page.getByRole('combobox', { name: 'Theme' }).selectOption('dark');
+      expect(await heading()).not.toBe(light);
+      await expectNoAxeViolations(page);
+    });
+
     test('loads only on its route, once', async ({ page }) => {
       const loaded = scripts(page);
       await page.goto('/');

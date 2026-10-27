@@ -74,4 +74,17 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('link', { name: 'Home' }));
     expect(window.location.pathname).toBe('/');
   });
+
+  it('switches the theme from the header and keeps it', async () => {
+    visit('/help');
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Help' });
+    const theme = screen.getByRole<HTMLSelectElement>('combobox', { name: 'Theme' });
+    expect(theme.value).toBe('system');
+    fireEvent.change(theme, { target: { value: 'dark' } });
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(localStorage.getItem('shop-theme')).toBe('dark');
+    fireEvent.change(theme, { target: { value: 'system' } });
+    expect(document.documentElement.dataset.theme).toBeUndefined();
+  });
 });

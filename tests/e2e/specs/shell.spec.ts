@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { ports } from '../mfes.js';
 import { expectNoAxeViolations, origins, scripts, traceId, traceparent } from './helpers.js';
 
@@ -101,6 +101,44 @@ test.describe('health and version', () => {
     expect(res.headers()['cache-control']).toBe('no-cache');
     expect(await res.json()).toMatchObject({ name: '@shop-shell/client' });
   });
+});
+
+test.describe('theme', () => {
+  const background = (page: Page) =>
+    page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+
+  test('the switcher picks light, dark or system and keeps it', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'light' });
+    await page.goto('/');
+    const theme = page.getByRole('combobox', { name: 'Theme' });
+    await expect(theme).toHaveValue('system');
+    const light = await background(page);
+
+    await theme.selectOption('dark');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    const dark = await background(page);
+    expect(dark).not.toBe(light);
+
+    // Kept across loads and applied before the first paint.
+    await page.goto('/help');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(theme).toHaveValue('dark');
+    expect(await background(page)).toBe(dark);
+
+    await theme.selectOption('system');
+    await expect(page.locator('html')).not.toHaveAttribute('data-theme');
+    await page.emulateMedia({ colorScheme: 'dark' });
+    expect(await background(page)).toBe(dark);
+  });
+
+  for (const path of ['/', '/help']) {
+    test(`${path} has no WCAG 2.2 AA violations in the dark theme`, async ({ page }) => {
+      await page.goto(path);
+      await page.getByRole('combobox', { name: 'Theme' }).selectOption('dark');
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      await expectNoAxeViolations(page);
+    });
+  }
 });
 
 test.describe('accessibility', () => {

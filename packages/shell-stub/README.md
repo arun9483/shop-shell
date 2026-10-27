@@ -52,6 +52,13 @@ the Shell's public browser keys.
 The stub uses the same `@arun-dev/ui` and `@arun-dev/tokens` versions as the Shell, so an MFE looks the
 same standalone as in the Shell. Requires Node 24.22.1 or newer.
 
+### Theme
+
+The stub's header has the Shell's theme switcher: light, dark or system. It is the same component as
+in the Shell, so the MFE can be checked in every theme without the Shell. The choice is kept in the
+browser for the stub's origin and applied before the first paint. The MFE needs nothing for it: the
+brand's colour tokens follow `data-theme` on `<html>`.
+
 ## Development mode (HMR)
 
 With `--dev`, the stub runs the MFE's own Vite (from the MFE's `node_modules`, with its

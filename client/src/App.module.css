@@ -30,6 +30,10 @@
   list-style: none;
 }
 
+.theme {
+  margin-inline-start: auto;
+}
+
 .main {
   padding: var(--space-xl);
 }

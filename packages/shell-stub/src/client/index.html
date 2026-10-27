@@ -4,12 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Shop MFE standalone</title>
+    <!-- The saved theme (client/src/theme.ts), applied before the first paint so the page never flashes the other theme. -->
+    <script>
+      try {
+        const theme = localStorage.getItem('shop-theme');
+        if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+      } catch {}
+    </script>
     <!--shell-stub-config-->
   </head>
   <body>
     <header class="stub-header">
       <strong id="stub-title">Standalone</strong>
       <span class="stub-note">Shell stub: this MFE runs without the Shell app</span>
+      <div id="stub-theme" class="stub-theme"></div>
     </header>
     <main id="main" class="stub-main">
       <div id="stub-message" role="alert" hidden></div>
