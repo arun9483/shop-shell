@@ -8,7 +8,11 @@
 }
 
 .stub-note {
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
+}
+
+.stub-theme {
+  margin-inline-start: auto;
 }
 
 .stub-main {

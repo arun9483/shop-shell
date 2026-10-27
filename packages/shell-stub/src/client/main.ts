@@ -11,6 +11,7 @@ import './stub.css';
 import { addErrorHandler, navigateToUrl, registerApplication, start } from 'single-spa';
 import type { LifeCycles } from 'single-spa';
 import type { StubConfig } from '../config.js';
+import { mountThemeSwitcher } from './theme.js';
 
 function readConfig(): StubConfig {
   const element = document.getElementById('shell-stub-config');
@@ -25,6 +26,10 @@ if (config.newRelic) {
   const { startMonitoring } = await import('./monitoring.js');
   startMonitoring(config.newRelic);
 }
+
+// The Shell's theme switcher, so the MFE can be checked in light, dark and system themes.
+const themeRoot = document.getElementById('stub-theme');
+if (themeRoot) mountThemeSwitcher(themeRoot);
 
 const title = document.getElementById('stub-title');
 const message = document.getElementById('stub-message');

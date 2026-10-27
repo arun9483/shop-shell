@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Shop</title>
+    <!-- The saved theme (client/src/theme.ts), applied before the first paint so the page never flashes the other theme. -->
+    <script>
+      try {
+        const theme = localStorage.getItem('shop-theme');
+        if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+      } catch {}
+    </script>
   </head>
   <body>
     <div id="shell-root"></div>

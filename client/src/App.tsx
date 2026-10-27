@@ -4,6 +4,7 @@ import styles from './App.module.css';
 import { ErrorBoundary } from './ErrorBoundary';
 import { activeMfe, MFE_ERROR_EVENT, MFE_ROOT_ID } from './mfes';
 import { NavLink, usePathname } from './routing';
+import { ThemeSwitcher } from './ThemeSwitcher';
 import { lazyWithTimeout } from './timeouts';
 
 // Each Shell feature is its own chunk, loaded on its first visit.
@@ -75,6 +76,9 @@ export function App() {
             </li>
           </ul>
         </nav>
+        <div className={styles.theme}>
+          <ThemeSwitcher />
+        </div>
       </header>
       <main id="main" className={styles.main}>
         {!mfe && (

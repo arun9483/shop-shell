@@ -5,6 +5,19 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* Native parts (scrollbars, form controls, pickers) follow the active theme, as the brand's colours do. */
+:root {
+  color-scheme: light dark;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
   background-color: var(--color-bg-primary);
