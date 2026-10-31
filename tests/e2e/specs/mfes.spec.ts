@@ -182,6 +182,13 @@ for (const mfe of mfes) {
       expect(await version.json()).toMatchObject({ name: `@shop-${name}/client` });
     });
 
+    test('the public origin answers its health and version', async ({ request }) => {
+      expect((await request.get(`/health/units/${name}`)).status()).toBe(200);
+      expect(await (await request.get(`/version/units/${name}`)).json()).toMatchObject({
+        name: `@shop-${name}/fes`,
+      });
+    });
+
     for (const path of [`/${name}`, `/${name}/test-error`]) {
       test(`${path} has no WCAG 2.2 AA violations`, async ({ page }) => {
         await page.goto(path);

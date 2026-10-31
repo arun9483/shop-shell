@@ -32,7 +32,7 @@ for (const [index, unit] of units.entries()) {
     await expect.poll(async () => (await request.get(`${fes}/health/ready`)).status()).toBe(503);
     const notReady = await request.get(`${fes}/health/ready`);
     expect(notReady.headers()['content-type']).toMatch(/^application\/health\+json/);
-    expect(await notReady.json()).toEqual({ status: 'fail' });
+    expect(await notReady.json()).toMatchObject({ status: 'fail', serviceId: expect.any(String) });
     // Still live: only readiness depends on the backend.
     expect((await request.get(`${fes}/health/live`)).status()).toBe(200);
 

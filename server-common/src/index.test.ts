@@ -74,12 +74,22 @@ describe('problemHandler', () => {
 });
 
 describe('healthRouter', () => {
+  const health = (status: string) => ({
+    status,
+    version: version.version,
+    releaseId: version.commit,
+    serviceId: version.name,
+  });
+
   it('is live and serves its version', async () => {
     const live = await request(app()).get('/health/live');
     expect(live.status).toBe(200);
     expect(live.headers['content-type']).toMatch(/^application\/health\+json/);
-    expect(live.body).toEqual({ status: 'pass' });
-    expect((await request(app()).get('/version')).body).toEqual(version);
+    expect(live.headers['cache-control']).toBe('no-store');
+    expect(live.body).toEqual(health('pass'));
+    const info = await request(app()).get('/version');
+    expect(info.headers['cache-control']).toBe('no-store');
+    expect(info.body).toEqual(version);
   });
 
   it('is not ready when its check fails or throws', async () => {
@@ -89,7 +99,9 @@ describe('healthRouter', () => {
     expect(
       (await request(app(() => Promise.reject(new Error()))).get('/health/ready')).status,
     ).toBe(503);
-    expect((await request(app()).get('/health/ready')).body).toEqual({ status: 'pass' });
+    expect((await request(app()).get('/health/ready')).body).toEqual(health('pass'));
+    const notReady = await request(app(() => Promise.resolve(false))).get('/health/ready');
+    expect(notReady.body).toEqual(health('fail'));
   });
 
   it('does not set traceresponse on health routes', async () => {

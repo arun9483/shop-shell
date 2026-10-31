@@ -93,8 +93,32 @@ test.describe('health and version', () => {
     });
   }
 
-  test('the router does not expose health', async ({ request }) => {
-    expect((await request.get('/health/live')).status()).toBe(404);
+  test('the public origin answers health and version for the router and the Shell', async ({
+    request,
+  }) => {
+    for (const path of ['/health/live', '/health/ready', '/version']) {
+      const res = await request.get(path);
+      expect(res.status(), path).toBe(200);
+      expect(res.headers()['cache-control'], path).toBe('no-store');
+    }
+    expect(await (await request.get('/version')).json()).toMatchObject({ name: 'shop-router' });
+
+    const units = await request.get('/health/units');
+    expect(units.headers()['content-type']).toMatch(/^application\/health\+json/);
+    expect(await units.json()).toMatchObject({
+      serviceId: 'shop-router',
+      checks: { 'shell:ready': [{ componentId: 'shell', status: 'pass' }] },
+    });
+    expect((await request.get('/health/units/shell')).status()).toBe(200);
+    expect((await request.get('/health/units/no-such-unit')).status()).toBe(404);
+
+    const versions = await request.get('/version/units');
+    expect(await versions.json()).toMatchObject({
+      units: { router: { name: 'shop-router' }, shell: { name: '@shop-shell/fes' } },
+    });
+    expect(await (await request.get('/version/units/shell')).json()).toMatchObject({
+      name: '@shop-shell/fes',
+    });
   });
 
   test('the client serves its version.json, uncached', async ({ request }) => {
