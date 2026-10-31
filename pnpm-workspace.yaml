@@ -2,7 +2,6 @@ packages:
   - client
   - fes
   - mock-backend
-  - router
   - edge
   - server-common
   - packages/*

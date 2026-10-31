@@ -1,9 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
-import { mfes, ports } from './mfes.js';
+import { mfes, ports, routerDir } from './mfes.js';
 
-// Runs against built output: `pnpm build` here and in each MFE repository first. An MFE whose
-// repository is not checked out next to this one (or at SHOP_<NAME>_DIR) and built is not started,
-// so its route shows the Shell's fallback.
+// Runs against built output: `pnpm build` here, in `shop-router` and in each MFE repository first.
+// `shop-router` is required. An MFE whose repository is not checked out next to this one (or at
+// SHOP_<NAME>_DIR) and built is not started, so its route shows the Shell's fallback.
 const env = {
   NEW_RELIC_ENABLED: 'false',
   NEW_RELIC_NO_CONFIG_FILE: 'true',
@@ -47,7 +47,7 @@ export default defineConfig({
     ...unit('../..', ports.fes, ports.backend),
     ...mfes.filter((m) => m.available).flatMap((m) => unit(m.dir, m.fesPort, m.backendPort)),
     server(
-      '../../router',
+      routerDir,
       ports.router,
       {
         SHELL_URL: `http://localhost:${ports.fes}`,
