@@ -5,7 +5,7 @@
   "packageManager": "pnpm@11.28.5",
   "scripts": {
     "build": "pnpm -r --filter=!@shop-shell/e2e run build",
-    "start": "pnpm -r --parallel --filter=./fes --filter=./mock-backend --filter=./router run start",
+    "start": "pnpm -r --parallel --filter=./fes --filter=./mock-backend run start",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

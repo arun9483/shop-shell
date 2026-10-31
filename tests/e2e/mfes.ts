@@ -3,6 +3,11 @@ import { resolve } from 'node:path';
 
 export const ports = { router: 3000, fes: 3001, backend: 4001 } as const;
 
+/** The `shop-router` repository, built, next to this one or at SHOP_ROUTER_DIR. */
+export const routerDir = resolve(
+  process.env.SHOP_ROUTER_DIR ?? resolve(import.meta.dirname, '../../../shop-router'),
+);
+
 export interface SlowApi {
   page: string;
   api: string;

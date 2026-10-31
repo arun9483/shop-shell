@@ -3,9 +3,9 @@
 // version) behind its own FES, and a second router that points at it.
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
-import { mfes, ports } from '../mfes.js';
+import { mfes, ports, routerDir } from '../mfes.js';
 import { start, stopAll, untilUp } from './helpers.js';
 
 const routerB = 3100;
@@ -40,7 +40,7 @@ for (const [index, mfe] of mfes.entries()) {
       CLIENT_DIST: distB,
     });
     const routerPort = routerB + index;
-    start(resolve(import.meta.dirname, '../../../router'), {
+    start(routerDir, {
       PORT: String(routerPort),
       SHELL_URL: `http://localhost:${ports.fes}`,
       ...Object.fromEntries(

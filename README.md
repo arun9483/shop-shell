@@ -10,7 +10,6 @@ Requirements and decisions are in [arun-mfe-platform](https://github.com/arun948
 | `client/`              | React + single-spa root config, built with Vite                                  | —      |
 | `fes/`                 | Express FES: serves the client, `/api/shell/*`, health and version               | `3001` |
 | `mock-backend/`        | Dev only. Stand-in for the Shell's backend service                               | `4001` |
-| `router/`              | Dev only. The one public origin, routing by path as a CDN would                  | `3000` |
 | `server-common/`       | Trace context, problem+json, health and version for the servers                  | —      |
 | `packages/shell-stub/` | Published as `@arun-shop/shell-stub`: runs one MFE standalone, without the Shell | —      |
 | `tests/e2e/`           | Playwright + axe against the router; run on demand                               | —      |
@@ -23,9 +22,13 @@ Relic agent is on.
 ```sh
 pnpm install
 pnpm build
-pnpm start          # router, FES and mock backend
+pnpm start          # FES and mock backend
 open http://localhost:3000
 ```
+
+The one public origin, `http://localhost:3000`, comes from
+[shop-router](https://github.com/arun9483/shop-router): check it out next to this repository, then
+run `pnpm install`, `pnpm build` and `pnpm start` there.
 
 Each package reads its own `.env`; copy `.env.example` to `.env`. The New Relic values in it are
 placeholders until the New Relic account is set up: with them nothing is reported and source map
@@ -43,7 +46,7 @@ mock backend and one for the FES (`deploy/Dockerfile`), deploys the backend as a
 only this FES may call, then the FES, and checks the FES is ready.
 
 `edge/` is the Cloudflare Worker that is the shop's one public origin (Worker `shop-staging` on
-`workers.dev`). Like the dev router, it sends `/mfe/<name>` and `/api/<name>` to that MFE's FES and
+`workers.dev`). Like `shop-router`, it sends `/mfe/<name>` and `/api/<name>` to that MFE's FES and
 everything else to the Shell's FES, and hides `/health` and `/version`. It has its own workflow,
 `.github/workflows/deploy-edge-staging.yml`, run on a push to `main` that changes `edge/` or by hand:
 the FES URLs are fixed per service, so unit deploys do not redeploy it. It reads those URLs from Cloud
