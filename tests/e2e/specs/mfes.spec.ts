@@ -1,7 +1,7 @@
 // Checks every MFE in the Shell's static list the same way, so a new MFE is covered as
 // soon as its repository is checked out and built. MFE-specific pages are in <name>.spec.ts.
 import { expect, test, type Page } from '@playwright/test';
-import { mfes, ports } from '../mfes.js';
+import { externalOrigin, mfes, origin } from '../mfes.js';
 import { expectNoAxeViolations, origins, scripts, traceId, traceparent } from './helpers.js';
 
 for (const mfe of mfes) {
@@ -134,7 +134,7 @@ for (const mfe of mfes) {
       await page.goto(`/${name}/test-error?kind=fes`);
       await page.getByRole('button').click();
       await expect(page.locator('output')).toContainText('HTTP 500');
-      expect([...seen]).toEqual([`http://localhost:${ports.router}`]);
+      expect([...seen]).toEqual([origin]);
       expect(api.every((path) => path.startsWith(`/api/${name}/`))).toBe(true);
     });
 
@@ -171,7 +171,7 @@ for (const mfe of mfes) {
     test('its FES and backend answer health and version; its client serves version.json', async ({
       request,
     }) => {
-      for (const port of [mfe.fesPort, mfe.backendPort]) {
+      for (const port of externalOrigin ? [] : [mfe.fesPort, mfe.backendPort]) {
         const base = `http://localhost:${port}`;
         expect((await request.get(`${base}/health/live`)).status()).toBe(200);
         expect((await request.get(`${base}/health/ready`)).status()).toBe(200);
