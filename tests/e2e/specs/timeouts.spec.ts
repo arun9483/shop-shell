@@ -5,7 +5,7 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { resolve } from 'node:path';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { mfes } from '../mfes.js';
+import { externalOrigin, mfes } from '../mfes.js';
 import { start, stopAll, traceId, traceparent, untilUp } from './helpers.js';
 
 const longerThanAnyTimeout = 60_000;
@@ -145,6 +145,8 @@ for (const unit of units) {
 }
 
 test.describe('FES: slow backend', () => {
+  test.skip(!!externalOrigin, 'starts its own FES');
+
   let slowBackend: Server;
   let slowBackendUrl: string;
 

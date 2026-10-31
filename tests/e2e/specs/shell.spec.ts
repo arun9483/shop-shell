@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ports } from '../mfes.js';
+import { externalOrigin, origin, ports } from '../mfes.js';
 import { expectNoAxeViolations, origins, scripts, traceId, traceparent } from './helpers.js';
 
 test.describe('lazy loading', () => {
@@ -42,7 +42,7 @@ test.describe('origin and source maps', () => {
     await page.goto('/');
     await page.getByRole('link', { name: 'Help' }).click();
     await expect(page.getByRole('heading', { name: 'Help' })).toBeVisible();
-    expect([...seen]).toEqual([`http://localhost:${ports.router}`]);
+    expect([...seen]).toEqual([origin]);
 
     const entry = await page.locator('script[type="module"]').getAttribute('src');
     expect(entry).toBeTruthy();
@@ -85,6 +85,7 @@ test.describe('API conventions', () => {
 test.describe('health and version', () => {
   for (const port of [ports.fes, ports.backend]) {
     test(`port ${port} answers health and version`, async ({ request }) => {
+      test.skip(!!externalOrigin, 'servers are not reachable on their own ports');
       const base = `http://localhost:${port}`;
       expect((await request.get(`${base}/health/live`)).status()).toBe(200);
       expect((await request.get(`${base}/health/ready`)).status()).toBe(200);

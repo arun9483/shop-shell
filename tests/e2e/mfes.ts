@@ -8,6 +8,12 @@ export const routerDir = resolve(
   process.env.SHOP_ROUTER_DIR ?? resolve(import.meta.dirname, '../../../shop-router'),
 );
 
+/** A stack that is already running, e.g. the Docker stack. Its servers' own ports are unreachable. */
+export const externalOrigin = process.env.E2E_BASE_URL;
+
+/** The one public origin. */
+export const origin = externalOrigin ?? `http://localhost:${ports.router}`;
+
 export interface SlowApi {
   page: string;
   api: string;
