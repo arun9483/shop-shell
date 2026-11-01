@@ -61,13 +61,13 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
 
       # The client is built for staging: it reports to the staging browser app, and its source maps
       # are uploaded against staging's public origin, then deleted.
-      - name: Build for staging
-        run: pnpm build
+      - name: Build the images
+        run: deploy/build.sh
         env:
+          IMAGE_TAG: ${{ github.sha }}
           PUBLIC_ORIGIN: ${{ vars.PUBLIC_ORIGIN }}
           VITE_NEW_RELIC_ACCOUNT_ID: ${{ vars.VITE_NEW_RELIC_ACCOUNT_ID }}
           VITE_NEW_RELIC_TRUST_KEY: ${{ vars.VITE_NEW_RELIC_TRUST_KEY }}
@@ -76,25 +76,19 @@ jobs:
           VITE_NEW_RELIC_APPLICATION_ID: ${{ vars.VITE_NEW_RELIC_APPLICATION_ID }}
           NEW_RELIC_USER_API_KEY: ${{ secrets.NEW_RELIC_USER_API_KEY }}
 
-      - name: Assemble the images' contents
-        run: |
-          pnpm --filter "@shop-$UNIT/fes" deploy --prod out/fes
-          pnpm --filter "@shop-$UNIT/mock-backend" deploy --prod out/backend
-          cp -R client/dist out/fes/client-dist
-
       - uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOYER }}
       - uses: google-github-actions/setup-gcloud@v3.0.1
 
-      - name: Build and push the images
+      - name: Push the images
         run: |
           gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
           base="$REGION-docker.pkg.dev/$PROJECT/shop"
           for part in fes backend; do
             image="$base/$UNIT-$part:$GITHUB_SHA"
-            docker build -t "$image" -f deploy/Dockerfile "out/$part"
+            docker tag "shop-$UNIT-$part:$GITHUB_SHA" "$image"
             docker push --quiet "$image"
           done
 
