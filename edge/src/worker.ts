@@ -22,7 +22,7 @@ export function originFor(path: string, env: Env): string {
 }
 
 /**
- * The one public origin, routing by path as the dev router does. Requests and headers, trace
+ * The one public origin, routing by path as `shop-router` does. Requests and headers, trace
  * headers included, pass through unchanged; each FES sets its own caching headers.
  */
 export default {

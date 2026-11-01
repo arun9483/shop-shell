@@ -35,7 +35,7 @@ test.describe('isolation', () => {
 });
 
 test.describe('origin and source maps', () => {
-  test('the browser talks only to the router origin and New Relic; no map is served', async ({
+  test('the browser talks only to the public origin and New Relic; no map is served', async ({
     page,
   }) => {
     const seen = origins(page);

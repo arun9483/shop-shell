@@ -122,7 +122,7 @@ for (const mfe of mfes) {
       await expect(page.getByRole('heading', { name: 'Help' })).toBeVisible();
     });
 
-    test('the browser talks only to the router origin; its API calls stay in /api/<name>', async ({
+    test('the browser talks only to the public origin; its API calls stay in /api/<name>', async ({
       page,
     }) => {
       const seen = origins(page);
