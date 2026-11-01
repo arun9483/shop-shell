@@ -9,7 +9,7 @@ Requirements and decisions are in [arun-mfe-platform](https://github.com/arun948
 | ---------------------- | -------------------------------------------------------------------------------- | ------ |
 | `client/`              | React + single-spa root config, built with Vite                                  | —      |
 | `fes/`                 | Express FES: serves the client, `/api/shell/*`, health and version               | `3001` |
-| `mock-backend/`        | Dev only. Stand-in for the Shell's backend service                               | `4001` |
+| `mock-backend/`        | Stand-in for the Shell's backend service                                         | `4001` |
 | `server-common/`       | Trace context, problem+json, health and version for the servers                  | —      |
 | `packages/shell-stub/` | Published as `@arun-shop/shell-stub`: runs one MFE standalone, without the Shell | —      |
 | `tests/e2e/`           | Playwright + axe against the router; run on demand                               | —      |
