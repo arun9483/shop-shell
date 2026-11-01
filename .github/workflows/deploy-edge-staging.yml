@@ -1,7 +1,7 @@
 # Deploys the Cloudflare Worker that is the shop's one public origin (edge/) to staging, then checks
 # every unit through it. Runs on a push to main that changes the Worker, or by hand from any branch:
-# the FES URLs it routes to are fixed per service, so Shell, Catalog and Cart deploys do not need it.
-# Deploy every unit's FES before the first run. Identifiers come from GitHub variables and secrets.
+# the router's URL is fixed, so unit and router deploys do not need it. shop-router must be deployed
+# before the first run. Identifiers come from GitHub variables and secrets.
 name: Deploy the Worker to staging
 
 on:
@@ -17,7 +17,7 @@ concurrency:
 
 permissions:
   contents: read
-  # Workload identity federation, only to read the FES URLs from Cloud Run.
+  # Workload identity federation, only to read the router's URL from Cloud Run.
   id-token: write
 
 env:
@@ -66,22 +66,17 @@ jobs:
           service_account: ${{ vars.GCP_DEPLOYER }}
       - uses: google-github-actions/setup-gcloud@v3.0.1
 
-      # The FES URLs are read from Cloud Run, not stored.
+      # The router's URL is read from Cloud Run, not stored.
       - name: Deploy the Worker (public origin)
         working-directory: edge
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          fes() {
-            gcloud run services describe "$1-fes-$ENVIRONMENT" --project "$PROJECT" --region "$REGION" \
-              --format 'value(status.url)'
-          }
+          router=$(gcloud run services describe "shop-router-$ENVIRONMENT" --project "$PROJECT" \
+            --region "$REGION" --format 'value(status.url)')
           pnpm exec wrangler whoami
-          pnpm exec wrangler deploy --env "$ENVIRONMENT" \
-            --var "SHELL_URL:$(fes shell)" \
-            --var "MFE_CATALOG_URL:$(fes catalog)" \
-            --var "MFE_CART_URL:$(fes cart)"
+          pnpm exec wrangler deploy --env "$ENVIRONMENT" --var "ROUTER_URL:$router"
 
       - name: Check the public origin
         env:
@@ -99,9 +94,8 @@ jobs:
             [ "$status" = "$1" ] || failed=1
           }
           for path in / /catalog /api/shell/greeting /api/catalog/products /api/cart \
-            /mfe/catalog/entry.js /mfe/cart/entry.js; do
+            /mfe/catalog/entry.js /mfe/cart/entry.js /health/ready /health/units /version \
+            /version/units; do
             check 200 "$path"
           done
-          check 404 /health/ready
-          check 404 /version
           exit $failed

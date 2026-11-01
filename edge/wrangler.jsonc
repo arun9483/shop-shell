@@ -1,5 +1,5 @@
-// The shop's public origin. `--env staging` deploys the Worker `shop-staging`; the FES origins are
-// passed with `--var` at deploy, never kept here.
+// The shop's public origin. `--env staging` deploys the Worker `shop-staging`; the router's origin
+// is passed with `--var` at deploy, never kept here.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "shop",

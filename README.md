@@ -46,11 +46,11 @@ mock backend and one for the FES (`deploy/Dockerfile`), deploys the backend as a
 only this FES may call, then the FES, and checks the FES is ready.
 
 `edge/` is the Cloudflare Worker that is the shop's one public origin (Worker `shop-staging` on
-`workers.dev`). Like `shop-router`, it sends `/mfe/<name>` and `/api/<name>` to that MFE's FES and
-everything else to the Shell's FES, and hides `/health` and `/version`. It has its own workflow,
-`.github/workflows/deploy-edge-staging.yml`, run on a push to `main` that changes `edge/` or by hand:
-the FES URLs are fixed per service, so unit deploys do not redeploy it. It reads those URLs from Cloud
-Run at deploy (deploy every unit's FES first) and ends by checking every unit through the public origin.
+`workers.dev`). It only forwards to [shop-router](https://github.com/arun9483/shop-router), which does all
+the routing and answers health and version. It has its own workflow,
+`.github/workflows/deploy-edge-staging.yml`, run on a push to `main` that changes `edge/` or by hand: the
+router's URL is fixed, so unit and router deploys do not redeploy it. It reads that URL from Cloud Run at
+deploy (deploy `shop-router` first) and ends by checking every unit through the public origin.
 
 The workflow reads every identifier from GitHub: repository variables `GCP_PROJECT_ID`, `GCP_REGION`,
 `GCP_WIF_PROVIDER`, `GCP_DEPLOYER`, `CLOUDFLARE_ACCOUNT_ID`; the secret `CLOUDFLARE_API_TOKEN`;
