@@ -1,0 +1,90 @@
+# Shell's settings in the shop's identity provider (Keycloak realm `shop`), applied by
+# shop-mfe-platform's settings importer (keycloak-config-cli). Secrets come from keycloak/.env.
+realm: shop
+
+clients:
+  # The one sign-in client: only the Shell FES signs users in.
+  - clientId: shell-fes
+    protocol: openid-connect
+    publicClient: false
+    secret: $(env:SHELL_FES_SECRET)
+    standardFlowEnabled: true
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: false
+    redirectUris:
+      - https://shop.test/auth/callback
+      - http://localhost:3000/auth/callback
+    webOrigins:
+      - https://shop.test
+      - http://localhost:3000
+    attributes:
+      pkce.code.challenge.method: S256
+      client.use.lightweight.access.token.enabled: 'true'
+      post.logout.redirect.uris: https://shop.test/##http://localhost:3000/
+    protocolMappers:
+      # Keycloak leaves sub out of lightweight access tokens unless a mapper adds it there.
+      - name: sub in lightweight tokens
+        protocol: openid-connect
+        protocolMapper: oidc-sub-mapper
+        config:
+          access.token.claim: 'true'
+          introspection.token.claim: 'true'
+          lightweight.claim: 'true'
+      # Puts a unit's backend in `aud` when the user holds one of its roles, also in lightweight tokens.
+      - name: audience resolve
+        protocol: openid-connect
+        protocolMapper: oidc-audience-resolve-mapper
+        config:
+          access.token.claim: 'true'
+          introspection.token.claim: 'true'
+          lightweight.claim: 'true'
+      # Each unit's roles in /userinfo only, for the FES gate; never in a token.
+      - name: unit roles in userinfo
+        protocol: openid-connect
+        protocolMapper: oidc-usermodel-client-role-mapper
+        config:
+          multivalued: 'true'
+          claim.name: resource_access.${client_id}.roles
+          jsonType.label: String
+          access.token.claim: 'false'
+          id.token.claim: 'false'
+          lightweight.claim: 'false'
+          introspection.token.claim: 'false'
+          userinfo.token.claim: 'true'
+
+  - clientId: shell-backend
+    protocol: openid-connect
+    publicClient: false
+    secret: $(env:SHELL_BACKEND_SECRET)
+    standardFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: true
+    # Keycloak 26.8's admin API takes only tokens with this scope. Optional: the backend asks for it only
+    # for admin API calls, so tokens it sends to other backends never carry admin API rights.
+    optionalClientScopes: [kc-admin-api]
+
+roles:
+  client:
+    shell-backend:
+      - name: shell-user
+        description: May use the Shell
+
+# Roles are granted through the Shell's own groups: several repositories' files name the same users,
+# and only group memberships merge across files.
+groups:
+  - name: shell
+    subGroups:
+      - name: user
+        clientRoles:
+          shell-backend: [shell-user]
+
+users:
+  # Lets the backend read users by sub.
+  - username: service-account-shell-backend
+    clientRoles:
+      realm-management: [view-users]
+  - username: alice
+    groups: [/shell/user]
+  - username: bob
+    groups: [/shell/user]
