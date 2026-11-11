@@ -258,7 +258,7 @@ describe('fesGate (FES)', () => {
     const gate = fesGate({
       idp,
       adapter: fakeAdapter(),
-      signInClientId: 'shell-fes',
+      loginClientId: 'shell-fes',
       backendUrl,
       backendTimeoutMs: 1000,
       cacheMs: 0,
@@ -273,7 +273,7 @@ describe('fesGate (FES)', () => {
     return app;
   }
 
-  it("lets a signed-in user through with the backend's /me answer and the token for backend calls", async () => {
+  it("lets a logged-in user through with the backend's /me answer and the token for backend calls", async () => {
     meStatus = 200;
     const res = await request(fesApp())
       .get('/api/x')
@@ -282,7 +282,7 @@ describe('fesGate (FES)', () => {
     expect(res.body).toEqual({ me: { sub: 'user-1', roles: ['shell-user'] }, bearer: true });
   });
 
-  it('answers 401 to API calls and sends pages to sign in without a valid token', async () => {
+  it('answers 401 to API calls and sends pages to log in without a valid token', async () => {
     expect((await request(fesApp()).get('/api/x')).status).toBe(401);
     expect(
       (

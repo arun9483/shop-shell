@@ -1,9 +1,9 @@
-// MVP-2 sign-in for the Shell (phase 2), through a stack with sign-in on: the Docker stack with
+// MVP-2 login for the Shell (phase 2), through a stack with login on: the Docker stack with
 // shop-mfe-platform's compose.sso.yaml.
 //
 //   E2E_SSO=1 E2E_BASE_URL=https://shop.test TEST_USER_PASSWORD=… pnpm test:e2e
 //
-// Users sign in on the identity provider's own page (Keycloak, https://shop.test:8443) as alice (every
+// Users log in on the identity provider's own page (Keycloak, https://shop.test:8443) as alice (every
 // unit's roles) or bob (no Catalog role).
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { origin } from '../mfes.js';
@@ -18,19 +18,19 @@ test.beforeAll(() => {
   expect(password, 'TEST_USER_PASSWORD from shop-mfe-platform/docker/.env').not.toBe('');
 });
 
-const onSignInPage = (page: Page) => expect(page).toHaveURL(new RegExp(`^${idpOrigin}/`));
+const onLoginPage = (page: Page) => expect(page).toHaveURL(new RegExp(`^${idpOrigin}/`));
 
-async function fillSignIn(page: Page, user: User): Promise<void> {
+async function fillLogin(page: Page, user: User): Promise<void> {
   await page.locator('#username').fill(user);
   await page.locator('#password').fill(password);
   await page.locator('#kc-login').click();
 }
 
-/** Opens `path`, signs in on the IdP's page, and waits to be back on `path`. */
-async function signIn(page: Page, user: User, path = '/'): Promise<void> {
+/** Opens `path`, logs in on the IdP's page, and waits to be back on `path`. */
+async function login(page: Page, user: User, path = '/'): Promise<void> {
   await page.goto(path);
-  await onSignInPage(page);
-  await fillSignIn(page, user);
+  await onLoginPage(page);
+  await fillLogin(page, user);
   await expect(page).toHaveURL(`${origin}${path}`);
   await expect(page.getByText(names[user])).toBeVisible();
 }
@@ -42,13 +42,13 @@ async function cookie(context: BrowserContext, name: string) {
   );
 }
 
-test.describe('without signing in', () => {
-  test('pages go to sign-in and come back to the same address; APIs answer 401', async ({
+test.describe('without logging in', () => {
+  test('pages go to login and come back to the same address; APIs answer 401', async ({
     page,
     request,
   }) => {
     await page.goto('/help?x=1');
-    await onSignInPage(page);
+    await onLoginPage(page);
     const returnTo = new URL(page.url()).searchParams.get('redirect_uri');
     expect(returnTo).toBe(`${origin}/auth/callback`);
 
@@ -59,7 +59,7 @@ test.describe('without signing in', () => {
   });
 
   test('hashed files and version.json stay public', async ({ page, request }) => {
-    await signIn(page, 'alice');
+    await login(page, 'alice');
     const script = await page.locator('script[type="module"][src]').first().getAttribute('src');
     expect(script).toMatch(/^\/assets\//);
     expect((await request.get(script ?? '')).status()).toBe(200);
@@ -67,12 +67,12 @@ test.describe('without signing in', () => {
   });
 });
 
-test.describe('signed in', () => {
+test.describe('logged in', () => {
   test('lands on the page asked for, with the three cookies, none readable by page code', async ({
     page,
     context,
   }) => {
-    await signIn(page, 'alice', '/help');
+    await login(page, 'alice', '/help');
     await expect(page.getByRole('heading', { name: 'Help' })).toBeVisible();
 
     const at = await cookie(context, 'shop_at');
@@ -94,7 +94,7 @@ test.describe('signed in', () => {
         sent.push((await req.allHeaders()).cookie ?? '');
       }
     });
-    await signIn(page, 'alice');
+    await login(page, 'alice');
     sent.length = 0;
     await page.reload();
     await expect(page.getByText('Welcome to the shop.')).toBeVisible();
@@ -108,7 +108,7 @@ test.describe('signed in', () => {
   test('/api/shell/me gives the user and the Shell roles, never a token or sid', async ({
     page,
   }) => {
-    await signIn(page, 'alice');
+    await login(page, 'alice');
     const res = await page.request.get('/api/shell/me');
     expect(res.status()).toBe(200);
     expect(res.headers()['cache-control']).toBe('no-store');
@@ -125,10 +125,10 @@ test.describe('signed in', () => {
   });
 
   test('the user display has no axe violations in either theme', async ({ page }) => {
-    await signIn(page, 'alice');
+    await login(page, 'alice');
     for (const theme of ['light', 'dark']) {
       await page.getByRole('combobox', { name: 'Theme' }).selectOption(theme);
-      await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible();
       await expectNoAxeViolations(page);
     }
   });
@@ -139,7 +139,7 @@ test.describe('refresh', () => {
     page,
     context,
   }) => {
-    await signIn(page, 'alice');
+    await login(page, 'alice');
     const refreshes: number[] = [];
     page.on('response', (res) => {
       if (res.url() === `${origin}/auth/refresh`) refreshes.push(res.status());
@@ -154,18 +154,18 @@ test.describe('refresh', () => {
   });
 });
 
-test.describe('sign-out', () => {
+test.describe('logout', () => {
   test('no confirmation page, cookies cleared, and access ends', async ({ page, context }) => {
     test.setTimeout(90_000);
-    await signIn(page, 'alice');
+    await login(page, 'alice');
     const oldAccess = (await cookie(context, 'shop_at'))?.value ?? '';
     const oldRefresh =
       (await context.cookies(`${origin}/auth/refresh`)).find((c) => c.name === 'shop_rt')?.value ??
       '';
 
-    await page.getByRole('button', { name: 'Sign out' }).click();
-    // Back to the shop, which is protected, so on to the IdP's sign-in form: never its "log out?" page.
-    await onSignInPage(page);
+    await page.getByRole('button', { name: 'Log out' }).click();
+    // Back to the shop, which is protected, so on to the IdP's login form: never its "log out?" page.
+    await onLoginPage(page);
     await expect(page.locator('#username')).toBeVisible();
     expect((await context.cookies(origin)).filter((c) => c.name.startsWith('shop_'))).toEqual([]);
 
@@ -190,40 +190,40 @@ test.describe('sign-out', () => {
 });
 
 test.describe('several tabs', () => {
-  test('signing out in one tab sends the other to sign-in at once', async ({ context }) => {
+  test('logging out in one tab sends the other to login at once', async ({ context }) => {
     const first = await context.newPage();
-    await signIn(first, 'alice');
+    await login(first, 'alice');
     const second = await context.newPage();
     await second.goto('/help');
     await expect(second.getByText(names.alice)).toBeVisible();
 
-    await first.getByRole('button', { name: 'Sign out' }).click();
-    await onSignInPage(second);
+    await first.getByRole('button', { name: 'Log out' }).click();
+    await onLoginPage(second);
   });
 
-  test('sign-ins started in two tabs both succeed', async ({ context }) => {
+  test('logins started in two tabs both succeed', async ({ context }) => {
     const [first, second] = [await context.newPage(), await context.newPage()];
     await first.goto('/');
     await second.goto('/help');
-    await onSignInPage(first);
-    await onSignInPage(second);
-    await fillSignIn(first, 'alice');
+    await onLoginPage(first);
+    await onLoginPage(second);
+    await fillLogin(first, 'alice');
     await expect(first.getByText(names.alice)).toBeVisible();
-    await fillSignIn(second, 'alice');
+    await fillLogin(second, 'alice');
     await expect(second).toHaveURL(`${origin}/help`);
     await expect(second.getByText(names.alice)).toBeVisible();
   });
 
-  test('another user signing in in one tab makes the other reload as that user', async ({
+  test('another user logging in in one tab makes the other reload as that user', async ({
     context,
   }) => {
     const [first, second] = [await context.newPage(), await context.newPage()];
-    await signIn(first, 'alice');
-    // Sign out at the IdP directly, so the Shell sends no "signed-out" message, then sign in as bob.
+    await login(first, 'alice');
+    // Log out at the IdP directly, so the Shell sends no "logged-out" message, then log in as bob.
     await second.goto(`${idpOrigin}/realms/shop/protocol/openid-connect/logout`);
     await second.locator('#kc-logout').click();
     await second.goto('/auth/login');
-    await fillSignIn(second, 'bob');
+    await fillLogin(second, 'bob');
     await expect(second.getByText(names.bob)).toBeVisible();
     await expect(first.getByText(names.bob)).toBeVisible();
     await expect(first.getByText(names.alice)).toHaveCount(0);

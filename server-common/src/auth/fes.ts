@@ -11,7 +11,7 @@ export interface FesGateOptions {
   idp: () => Promise<Idp>;
   adapter: IdpAdapter;
   /** The client that signs users in for the whole shop: only its tokens are accepted. */
-  signInClientId: string;
+  loginClientId: string;
   /** This unit's backend; its `/me` is the gate. */
   backendUrl: string;
   backendTimeoutMs: number;
@@ -21,8 +21,8 @@ export interface FesGateOptions {
 
 type GateAnswer = { status: 200; me: unknown } | { status: 401 | 403 };
 
-/** Where a page goes to sign in, coming back to the same address. */
-export function signInUrl(req: Request): string {
+/** Where a page goes to log in, coming back to the same address. */
+export function loginUrl(req: Request): string {
   return `/auth/login?returnTo=${encodeURIComponent(req.originalUrl)}`;
 }
 
@@ -33,16 +33,16 @@ export function userBearer(res: Response): Record<string, string> {
 }
 
 /**
- * For an FES: `shop_at` must hold a lightweight access token issued to the sign-in client. Checked
+ * For an FES: `shop_at` must hold a lightweight access token issued to the login client. Checked
  * locally, then the gate asks this unit's backend's `/me` with it, reused per session for
  * `cacheMs`: `200` lets the request through, `401` and `403` are passed back, and a backend or IdP
- * that cannot answer is `503`. Pages without a valid token are sent to sign in; API calls get `401`
+ * that cannot answer is `503`. Pages without a valid token are sent to log in; API calls get `401`
  * problem+json, so the client can refresh.
  */
 export function fesGate({
   idp,
   adapter,
-  signInClientId,
+  loginClientId,
   backendUrl,
   backendTimeoutMs,
   cacheMs = 15_000,
@@ -74,7 +74,7 @@ export function fesGate({
       ({ sub, sid } = await checkAccessToken(token, {
         keys,
         issuer: settings.issuer,
-        authorizedParty: signInClientId,
+        authorizedParty: loginClientId,
         isAccessToken: adapter.isAccessToken,
       }));
     } catch (error) {
@@ -100,7 +100,7 @@ export function fesGate({
       } catch (error) {
         res.set('Cache-Control', 'no-store');
         if (error instanceof IdpUnavailableError)
-          throw new HttpError(503, 'Sign-in cannot be checked now');
+          throw new HttpError(503, 'Login cannot be checked now');
         throw error;
       }
       if (answer.status === 200) {
@@ -115,7 +115,7 @@ export function fesGate({
   return {
     page: guard((req, res, status) => {
       if (status === 401) {
-        res.redirect(302, signInUrl(req));
+        res.redirect(302, loginUrl(req));
         return;
       }
       res
@@ -124,7 +124,7 @@ export function fesGate({
         .send('<!doctype html><title>No access</title><p>You do not have access to the shop.</p>');
     }),
     api: guard((_req, _res, status) => {
-      throw new HttpError(status, status === 401 ? 'Sign-in required' : 'No access to this unit');
+      throw new HttpError(status, status === 401 ? 'Login required' : 'No access to this unit');
     }),
   };
 }

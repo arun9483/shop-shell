@@ -16,7 +16,7 @@ export interface Idp {
  * checks that its issuer is the public one tokens carry. `openid-client`'s own `discovery()` refuses
  * a URL that differs from the issuer, so its configuration is built from the checked metadata.
  * Back-channel endpoints (token, keys, admin) then point inside the network; front-channel ones
- * (sign-in, sign-out) stay public.
+ * (login, logout) stay public.
  */
 async function discover(settings: OidcSettings, timeoutMs: number): Promise<Idp> {
   const url = `${settings.internalUrl.replace(/\/$/, '')}/.well-known/openid-configuration`;

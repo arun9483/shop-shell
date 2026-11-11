@@ -6,7 +6,7 @@ import { activeMfe, MFE_ERROR_EVENT, MFE_ROOT_ID } from './mfes';
 import { NavLink, usePathname } from './routing';
 import { ThemeSwitcher } from './ThemeSwitcher';
 import { lazyWithTimeout } from './timeouts';
-import { announceSignOut, useUser } from './user';
+import { announceLogout, useUser } from './user';
 
 // Each Shell feature is its own chunk, loaded on its first visit.
 const features: Record<string, ComponentType> = {
@@ -39,15 +39,15 @@ function Unavailable({ what }: { what: string }) {
   );
 }
 
-/** The signed-in user and sign-out, when sign-in is on (MVP-2). Sign-out is a POST form. */
+/** The logged-in user and logout, when login is on (MVP-2). Logout is a POST form. */
 function UserMenu() {
   const user = useUser();
   if (!user) return null;
   return (
-    <form className={styles.user} method="post" action="/auth/logout" onSubmit={announceSignOut}>
+    <form className={styles.user} method="post" action="/auth/logout" onSubmit={announceLogout}>
       <span>{user.name ?? user.preferred_username}</span>
       <Button type="submit" variant="ghost">
-        Sign out
+        Log out
       </Button>
     </form>
   );

@@ -5,7 +5,7 @@ import {
   HttpError,
   readCookie,
   setCookie,
-  signInAttemptCookie,
+  loginAttemptCookie,
   type CookieSealer,
   type Idp,
   type IdpAdapter,
@@ -13,16 +13,16 @@ import {
 import { Router, type Request, type Response } from 'express';
 import * as client from 'openid-client';
 
-export interface SignInOptions {
+export interface LoginOptions {
   idp: () => Promise<Idp>;
   adapter: IdpAdapter;
   /** The shop's public origin, e.g. `https://shop.test`: the callback and return addresses. */
   publicOrigin: string;
-  /** Encrypts the refresh token, the ID token and each sign-in attempt. */
+  /** Encrypts the refresh token, the ID token and each login attempt. */
   sealer: CookieSealer;
 }
 
-// A sign-in attempt must finish within this time.
+// A login attempt must finish within this time.
 const ATTEMPT_MS = 10 * 60 * 1000;
 
 interface Attempt {
@@ -31,7 +31,7 @@ interface Attempt {
   returnTo: string;
 }
 
-/** Only a path on the shop's own origin, never another site or the sign-in routes themselves. */
+/** Only a path on the shop's own origin, never another site or the login routes themselves. */
 export function safeReturnTo(value: unknown): string {
   if (typeof value !== 'string') return '/';
   if (!value.startsWith('/') || value.startsWith('//') || value.startsWith('/\\')) return '/';
@@ -44,10 +44,10 @@ export function safeReturnTo(value: unknown): string {
 }
 
 /**
- * The Shell FES's sign-in lifecycle (MVP-2): the only place tokens are received, refreshed or cleared.
+ * The Shell FES's login lifecycle (MVP-2): the only place tokens are received, refreshed or cleared.
  * Sets the three session cookies together and clears them together (ADR 0003).
  */
-export function signInRoutes({ idp, adapter, publicOrigin, sealer }: SignInOptions): Router {
+export function loginRoutes({ idp, adapter, publicOrigin, sealer }: LoginOptions): Router {
   const router = Router();
   const callbackUrl = `${publicOrigin}/auth/callback`;
 
@@ -75,7 +75,7 @@ export function signInRoutes({ idp, adapter, publicOrigin, sealer }: SignInOptio
       throw new HttpError(403, 'Cross-origin request refused');
   }
 
-  async function signedIn(req: Request): Promise<boolean> {
+  async function loggedIn(req: Request): Promise<boolean> {
     const token = readCookie(req, COOKIES.accessToken.name);
     if (!token) return false;
     const { settings, keys } = await idp();
@@ -98,7 +98,7 @@ export function signInRoutes({ idp, adapter, publicOrigin, sealer }: SignInOptio
     const attempt: Attempt = { verifier, nonce, returnTo: safeReturnTo(req.query.returnTo) };
     setCookie(
       res,
-      signInAttemptCookie(state),
+      loginAttemptCookie(state),
       await sealer.seal(JSON.stringify(attempt)),
       ATTEMPT_MS,
     );
@@ -115,12 +115,12 @@ export function signInRoutes({ idp, adapter, publicOrigin, sealer }: SignInOptio
 
   router.get('/auth/callback', async (req, res) => {
     const state = typeof req.query.state === 'string' ? req.query.state : '';
-    const cookie = signInAttemptCookie(state);
+    const cookie = loginAttemptCookie(state);
     const sealed = state ? readCookie(req, cookie.name) : undefined;
     const opened = sealed && (await sealer.open(sealed));
     if (!opened) {
-      // Another tab may have finished signing in already.
-      res.redirect(302, (await signedIn(req)) ? '/' : '/auth/login');
+      // Another tab may have finished logging in already.
+      res.redirect(302, (await loggedIn(req)) ? '/' : '/auth/login');
       return;
     }
     const attempt = JSON.parse(opened) as Attempt;
@@ -136,7 +136,7 @@ export function signInRoutes({ idp, adapter, publicOrigin, sealer }: SignInOptio
     } catch {
       res.redirect(
         302,
-        (await signedIn(req))
+        (await loggedIn(req))
           ? attempt.returnTo
           : `/auth/login?returnTo=${encodeURIComponent(attempt.returnTo)}`,
       );
@@ -152,7 +152,7 @@ export function signInRoutes({ idp, adapter, publicOrigin, sealer }: SignInOptio
     const refreshToken = sealed && (await sealer.open(sealed));
     if (!refreshToken) {
       clearSession(res);
-      throw new HttpError(401, 'Sign-in required');
+      throw new HttpError(401, 'Login required');
     }
     const { config } = await idp();
     let tokens: client.TokenEndpointResponse;
@@ -162,9 +162,9 @@ export function signInRoutes({ idp, adapter, publicOrigin, sealer }: SignInOptio
       if (error instanceof client.ResponseBodyError) {
         // The IdP's session has ended.
         clearSession(res);
-        throw new HttpError(401, 'Sign-in required');
+        throw new HttpError(401, 'Login required');
       }
-      throw new HttpError(503, 'Sign-in cannot be refreshed now');
+      throw new HttpError(503, 'Login cannot be refreshed now');
     }
     await setSession(res, tokens);
     res.status(204).end();
@@ -176,8 +176,8 @@ export function signInRoutes({ idp, adapter, publicOrigin, sealer }: SignInOptio
     const idToken = sealed && (await sealer.open(sealed));
     clearSession(res);
     const { config, settings } = await idp();
-    const postLogout = { post_logout_redirect_uri: `${publicOrigin}/auth/signed-out` };
-    // With the ID token the IdP signs out at once; without it, it asks the user to confirm.
+    const postLogout = { post_logout_redirect_uri: `${publicOrigin}/auth/logged-out` };
+    // With the ID token the IdP logs out at once; without it, it asks the user to confirm.
     const url = client.buildEndSessionUrl(
       config,
       idToken
@@ -188,14 +188,14 @@ export function signInRoutes({ idp, adapter, publicOrigin, sealer }: SignInOptio
   });
 
   // Where the IdP sends the browser once its session has ended: only now are the other tabs told, so
-  // none of them signs in again on the session being ended. Then on to the shop, which asks to sign in.
-  router.get('/auth/signed-out', (_req, res) => {
+  // none of them logs in again on the session being ended. Then on to the shop, which asks to log in.
+  router.get('/auth/logged-out', (_req, res) => {
     res
       .type('html')
       .send(
-        '<!doctype html><title>Signed out</title><script>' +
-          "try{new BroadcastChannel('shop-auth').postMessage({type:'signed-out'})}catch{}" +
-          'location.replace(\'/\')</script><p>You are signed out. <a href="/">Continue</a></p>',
+        '<!doctype html><title>Logged out</title><script>' +
+          "try{new BroadcastChannel('shop-auth').postMessage({type:'logged-out'})}catch{}" +
+          'location.replace(\'/\')</script><p>You are logged out. <a href="/">Continue</a></p>',
       );
   });
 

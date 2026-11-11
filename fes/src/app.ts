@@ -13,13 +13,13 @@ import {
   type VersionInfo,
 } from '@shop-shell/server-common';
 
-/** Sign-in for the shop (MVP-2), when `AUTH_ENABLED=true`. */
+/** Login for the shop (MVP-2), when `AUTH_ENABLED=true`. */
 export interface FesAuth {
-  /** `/auth/*`: the sign-in lifecycle. */
-  signIn: Router;
-  /** Pages: no valid sign-in → sign-in page. */
+  /** `/auth/*`: the login lifecycle. */
+  login: Router;
+  /** Pages: no valid login → login page. */
   page: RequestHandler;
-  /** `/api/shell/*`: no valid sign-in → 401, no Shell role → 403. */
+  /** `/api/shell/*`: no valid login → 401, no Shell role → 403. */
   api: RequestHandler;
 }
 
@@ -38,12 +38,12 @@ export interface FesConfig {
 }
 
 const NO_CACHE = 'no-cache';
-const SIGN_IN_MARKER = '<meta name="shop-sign-in" content="on">';
+const LOGIN_MARKER = '<meta name="shop-login" content="on">';
 
-function withSignInMarker(html: string): string {
+function withLoginMarker(html: string): string {
   return html.includes('</head>')
-    ? html.replace('</head>', `${SIGN_IN_MARKER}</head>`)
-    : html.replace(/^(<!doctype html>)?/i, `$1${SIGN_IN_MARKER}`);
+    ? html.replace('</head>', `${LOGIN_MARKER}</head>`)
+    : html.replace(/^(<!doctype html>)?/i, `$1${LOGIN_MARKER}`);
 }
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 
@@ -76,9 +76,9 @@ export function createApp({
     }),
   );
 
-  if (auth) app.use(auth.signIn);
+  if (auth) app.use(auth.login);
 
-  // Backend calls carry the user's lightweight access token when sign-in is on.
+  // Backend calls carry the user's lightweight access token when login is on.
   const headersFor = async (res: express.Response) => ({
     ...(await backendHeaders()),
     ...userBearer(res),
@@ -118,13 +118,13 @@ export function createApp({
   );
   // Missing files are 404s, not the app shell.
   app.use('/assets', notFound);
-  // Every other GET is a client route, including deep links into MFEs: signed in only, with auth on.
+  // Every other GET is a client route, including deep links into MFEs: logged in only, with auth on.
   if (auth) {
-    // The page says sign-in is on, so the client asks for the user only then: with sign-in off it
+    // The page says login is on, so the client asks for the user only then: with login off it
     // makes no extra request (MVP-1). Read once: the client's files change only with a deploy.
     let page: string | undefined;
     app.get('/{*path}', auth.page, (_req, res) => {
-      page ??= withSignInMarker(readFileSync(join(clientDist, 'index.html'), 'utf8'));
+      page ??= withLoginMarker(readFileSync(join(clientDist, 'index.html'), 'utf8'));
       res.set('Cache-Control', NO_CACHE).type('html').send(page);
     });
   }

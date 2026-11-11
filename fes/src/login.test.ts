@@ -2,7 +2,7 @@ import { cookieSealer, problemHandler, type IdpAdapter } from '@shop-shell/serve
 import express from 'express';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { safeReturnTo, signInRoutes } from './sign-in.js';
+import { safeReturnTo, loginRoutes } from './login.js';
 
 const ORIGIN = 'https://shop.test';
 
@@ -26,7 +26,7 @@ function app(): express.Express {
   // These tests stop before any IdP call.
   const idp = () => Promise.reject(new Error('no IdP in this test'));
   const adapter = { isAccessToken: () => true } as unknown as IdpAdapter;
-  const routes = signInRoutes({
+  const routes = loginRoutes({
     idp: idp,
     adapter,
     publicOrigin: ORIGIN,
@@ -35,7 +35,7 @@ function app(): express.Express {
   return express().use(routes).use(problemHandler);
 }
 
-describe('sign-in routes', () => {
+describe('login routes', () => {
   it.each(['/auth/refresh', '/auth/logout'])('%s refuses another origin with 403', async (path) => {
     const res = await request(app()).post(path).set('origin', 'https://evil.test');
     expect(res.status).toBe(403);

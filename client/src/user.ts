@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { apiFetch, goToSignIn } from './auth';
+import { apiFetch, goToLogin } from './auth';
 import { browserAgent } from './monitoring';
 
-/** The signed-in user as `/api/shell/me` gives it: OpenID Connect fields and the Shell's roles. */
+/** The logged-in user as `/api/shell/me` gives it: OpenID Connect fields and the Shell's roles. */
 export interface ShopUser {
   sub: string;
   preferred_username: string;
@@ -10,10 +10,10 @@ export interface ShopUser {
   roles: string[];
 }
 
-/** Keeps every tab of the shop in step on sign-in and sign-out. Messages carry no token. */
+/** Keeps every tab of the shop in step on login and logout. Messages carry no token. */
 export const AUTH_CHANNEL = 'shop-auth';
 
-type AuthMessage = { type: 'signed-in'; sub: string } | { type: 'signed-out' };
+type AuthMessage = { type: 'logged-in'; sub: string } | { type: 'logged-out' };
 
 const channel =
   typeof BroadcastChannel === 'undefined' ? undefined : new BroadcastChannel(AUTH_CHANNEL);
@@ -22,22 +22,22 @@ function isUser(value: unknown): value is ShopUser {
   return typeof value === 'object' && value !== null && typeof (value as ShopUser).sub === 'string';
 }
 
-/** The Shell FES marks the page when sign-in is on (MVP-2); otherwise nothing is asked (MVP-1). */
-function signInIsOn(): boolean {
-  return document.querySelector('meta[name="shop-sign-in"]') !== null;
+/** The Shell FES marks the page when login is on (MVP-2); otherwise nothing is asked (MVP-1). */
+function loginIsOn(): boolean {
+  return document.querySelector('meta[name="shop-login"]') !== null;
 }
 
 async function loadUser(): Promise<ShopUser | null> {
-  if (!signInIsOn()) return null;
+  if (!loginIsOn()) return null;
   const res = await apiFetch('/api/shell/me');
-  if (!res.ok) return null; // 404: sign-in is off (MVP-1)
+  if (!res.ok) return null; // 404: login is off (MVP-1)
   const body: unknown = await res.json();
   return isUser(body) ? body : null;
 }
 
 /**
- * The user this page shows, kept only in page memory: `undefined` while loading, `null` when sign-in is
- * off. The page reloads if another user signs in, in this tab or another, so it never sends a request
+ * The user this page shows, kept only in page memory: `undefined` while loading, `null` when login is
+ * off. The page reloads if another user logs in, in this tab or another, so it never sends a request
  * as someone other than the user it shows.
  */
 export function useUser(): ShopUser | null | undefined {
@@ -57,7 +57,7 @@ export function useUser(): ShopUser | null | undefined {
       }
       shown = next.sub;
       browserAgent?.setUserId(next.sub);
-      channel?.postMessage({ type: 'signed-in', sub: next.sub } satisfies AuthMessage);
+      channel?.postMessage({ type: 'logged-in', sub: next.sub } satisfies AuthMessage);
       setUser(next);
     };
     const refresh = () => {
@@ -70,7 +70,7 @@ export function useUser(): ShopUser | null | undefined {
     };
     const onMessage = (event: MessageEvent<AuthMessage>) => {
       if (!shown) return;
-      if (event.data.type === 'signed-out') goToSignIn();
+      if (event.data.type === 'logged-out') goToLogin();
       else if (event.data.sub !== shown) window.location.reload();
     };
 
@@ -87,9 +87,9 @@ export function useUser(): ShopUser | null | undefined {
 }
 
 /**
- * Before the sign-out form is sent: stop tagging events with the user. The other tabs are told by the
- * Shell FES's `/auth/signed-out` page, once the IdP's session has really ended.
+ * Before the logout form is sent: stop tagging events with the user. The other tabs are told by the
+ * Shell FES's `/auth/logged-out` page, once the IdP's session has really ended.
  */
-export function announceSignOut(): void {
+export function announceLogout(): void {
   browserAgent?.setUserId(null);
 }

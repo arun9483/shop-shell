@@ -6,7 +6,7 @@ import { IdpUnavailableError, type IdpAdapter, type IdpUser } from './idp/adapte
 import type { Idp } from './metadata.js';
 import { bearerToken, checkAccessToken } from './token.js';
 
-export interface SignedInUser {
+export interface LoggedInUser {
   sub: string;
   sid: string;
   user: IdpUser;
@@ -51,7 +51,7 @@ export function requireUser({
   return async (req, res, next) => {
     try {
       const token = bearerToken(req.get('authorization'));
-      if (!token) throw new HttpError(401, 'Sign-in required');
+      if (!token) throw new HttpError(401, 'Login required');
       const { settings, keys } = await idp();
       const { sub, sid } = await checkAccessToken(token, {
         keys,
@@ -70,8 +70,8 @@ export function requireUser({
       if (!active || !user?.enabled) throw new HttpError(401, 'The session has ended');
       newrelic.setUserID(sub);
       if (roles.length === 0) throw new HttpError(403, `No role in ${unit}`);
-      const signedIn: SignedInUser = { sub, sid, user, roles };
-      res.locals.user = signedIn;
+      const loggedIn: LoggedInUser = { sub, sid, user, roles };
+      res.locals.user = loggedIn;
       next();
     } catch (error) {
       refuse(res, error);
@@ -79,9 +79,9 @@ export function requireUser({
   };
 }
 
-export function signedInUser(res: Response): SignedInUser {
-  const user = res.locals.user as SignedInUser | undefined;
-  if (!user) throw new HttpError(401, 'Sign-in required');
+export function loggedInUser(res: Response): LoggedInUser {
+  const user = res.locals.user as LoggedInUser | undefined;
+  if (!user) throw new HttpError(401, 'Login required');
   return user;
 }
 
@@ -90,7 +90,7 @@ export function signedInUser(res: Response): SignedInUser {
  * another unit's roles or raw IdP attributes. It is also the FES's gate.
  */
 export const meHandler: RequestHandler = (_req, res) => {
-  const { user, roles } = signedInUser(res);
+  const { user, roles } = loggedInUser(res);
   const fields = Object.fromEntries(Object.entries(user).filter(([name]) => name !== 'enabled'));
   res
     .set('Cache-Control', 'no-store')

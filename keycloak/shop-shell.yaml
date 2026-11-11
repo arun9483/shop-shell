@@ -3,7 +3,7 @@
 realm: shop
 
 clients:
-  # The one sign-in client: only the Shell FES signs users in.
+  # The one login client: only the Shell FES signs users in.
   - clientId: shell-fes
     protocol: openid-connect
     publicClient: false
@@ -21,7 +21,7 @@ clients:
     attributes:
       pkce.code.challenge.method: S256
       client.use.lightweight.access.token.enabled: 'true'
-      post.logout.redirect.uris: https://shop.test/auth/signed-out##http://localhost:3000/auth/signed-out
+      post.logout.redirect.uris: https://shop.test/auth/logged-out##http://localhost:3000/auth/logged-out
     protocolMappers:
       # Keycloak leaves sub out of lightweight access tokens unless a mapper adds it there.
       - name: sub in lightweight tokens

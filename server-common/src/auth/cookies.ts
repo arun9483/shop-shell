@@ -11,8 +11,8 @@ export const COOKIES = {
   idToken: { name: 'shop_id', path: '/auth/logout' },
 } as const;
 
-/** The per-attempt sign-in cookie's name; only `/auth/callback` receives it. */
-export const signInAttemptCookie = (state: string) => ({
+/** The per-attempt login cookie's name; only `/auth/callback` receives it. */
+export const loginAttemptCookie = (state: string) => ({
   name: `shop_tx_${state}`,
   path: '/auth/callback',
 });

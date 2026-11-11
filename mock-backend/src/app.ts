@@ -10,7 +10,7 @@ import {
 
 /**
  * Stand-in for the Shell's backend service. Dev only; never deployed. With `requireUser` (MVP-2,
- * `AUTH_ENABLED=true`), every route but health and version needs a signed-in user with a Shell role.
+ * `AUTH_ENABLED=true`), every route but health and version needs a logged-in user with a Shell role.
  */
 export function createApp(version: VersionInfo, requireUser?: RequestHandler): Express {
   const app = express();

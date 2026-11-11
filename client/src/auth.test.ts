@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiFetch } from './auth';
 
-let signedIn: boolean;
+let loggedIn: boolean;
 let refreshes: number;
 
 function stubServer(refreshWorks: boolean) {
@@ -11,18 +11,18 @@ function stubServer(refreshWorks: boolean) {
       if (url === '/auth/refresh') {
         expect(init?.method).toBe('POST');
         refreshes++;
-        if (refreshWorks) signedIn = true;
+        if (refreshWorks) loggedIn = true;
         return Promise.resolve(new Response(null, { status: refreshWorks ? 204 : 401 }));
       }
       return Promise.resolve(
-        signedIn ? Response.json({ ok: true }) : new Response(null, { status: 401 }),
+        loggedIn ? Response.json({ ok: true }) : new Response(null, { status: 401 }),
       );
     }),
   );
 }
 
 beforeEach(() => {
-  signedIn = false;
+  loggedIn = false;
   refreshes = 0;
 });
 
@@ -33,7 +33,7 @@ afterEach(() => {
 
 describe('apiFetch', () => {
   it('passes any answer but 401 through untouched', async () => {
-    signedIn = true;
+    loggedIn = true;
     stubServer(true);
     expect((await apiFetch('/api/shell/greeting')).status).toBe(200);
     expect(refreshes).toBe(0);
@@ -53,7 +53,7 @@ describe('apiFetch', () => {
     expect(refreshes).toBe(1);
   });
 
-  it('goes to sign-in, back to this page, when refresh fails', async () => {
+  it('goes to login, back to this page, when refresh fails', async () => {
     stubServer(false);
     const assign = vi.fn();
     vi.stubGlobal('location', { pathname: '/help', search: '?x=1', assign });

@@ -20,7 +20,7 @@ export interface IdpAdapter {
   getUser(sub: string): Promise<IdpUser | undefined>;
   /** Backend: the user's effective roles in one unit (`shell`, `catalog`, …), by sub. */
   getUnitRoles(sub: string, unit: string): Promise<string[]>;
-  /** Backend: whether the sign-in session named by the token's sid is still live. */
+  /** Backend: whether the login session named by the token's sid is still live. */
   isSessionActive(sub: string, sid: string): Promise<boolean>;
   /** FES and backend: true only for an access token, never an ID or refresh token. */
   isAccessToken: (header: Record<string, unknown>, claims: Record<string, unknown>) => boolean;

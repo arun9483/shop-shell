@@ -11,7 +11,7 @@ export { keycloakAdapter } from './idp/keycloak.js';
 export { TtlCache } from './cache.js';
 export {
   COOKIES,
-  signInAttemptCookie,
+  loginAttemptCookie,
   readCookie,
   setCookie,
   clearCookie,
@@ -20,12 +20,12 @@ export {
 } from './cookies.js';
 export {
   requireUser,
-  signedInUser,
+  loggedInUser,
   meHandler,
-  type SignedInUser,
+  type LoggedInUser,
   type BackendUserOptions,
 } from './backend.js';
-export { fesGate, signInUrl, userBearer, type FesGateOptions } from './fes.js';
+export { fesGate, loginUrl, userBearer, type FesGateOptions } from './fes.js';
 
 import type { OidcSettings } from './config.js';
 import type { IdpAdapter } from './idp/adapter.js';

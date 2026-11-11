@@ -9,11 +9,11 @@ import { createApp } from './app.js';
 
 const port = Number(process.env.PORT ?? 4001);
 
-// Sign-in (MVP-2) is off unless AUTH_ENABLED=true.
+// Login (MVP-2) is off unless AUTH_ENABLED=true.
 const settings = oidcSettingsFromEnv();
-const signedIn = settings && requireUser({ ...connectIdp(settings), unit: 'shell' });
+const loggedIn = settings && requireUser({ ...connectIdp(settings), unit: 'shell' });
 
-const server = createApp(readVersion(import.meta.dirname), signedIn).listen(port, () => {
-  console.log(`shell mock backend on http://localhost:${port}${signedIn ? ' (sign-in on)' : ''}`);
+const server = createApp(readVersion(import.meta.dirname), loggedIn).listen(port, () => {
+  console.log(`shell mock backend on http://localhost:${port}${loggedIn ? ' (login on)' : ''}`);
 });
 closeOnSignal(server);

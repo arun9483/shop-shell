@@ -27,7 +27,7 @@ function startAgent(): BrowserAgent | undefined {
 }
 
 /**
- * The browser agent, when its keys are set. Only the Shell uses it directly: after sign-in it tags
+ * The browser agent, when its keys are set. Only the Shell uses it directly: after login it tags
  * every event with the user's `sub` (`setUserId`), never an email or username.
  */
 export const browserAgent = startAgent();

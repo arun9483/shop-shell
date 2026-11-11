@@ -42,7 +42,7 @@ const sso = process.env.E2E_SSO === '1';
 
 export default defineConfig({
   testDir: 'specs',
-  // Sign-in (MVP-2): with E2E_SSO=1, only sso.spec.ts runs, through a stack with sign-in on (the Docker
+  // Login (MVP-2): with E2E_SSO=1, only sso.spec.ts runs, through a stack with login on (the Docker
   // stack with compose.sso.yaml). Without it, sso.spec.ts is left out and MVP-1's specs run.
   ...(sso
     ? { testMatch: 'sso.spec.ts' }
