@@ -1,12 +1,49 @@
 import { resolve } from 'node:path';
-import { backendAuth, closeOnSignal, readVersion } from '@shop-shell/server-common';
-import { createApp } from './app.js';
+import {
+  backendAuth,
+  closeOnSignal,
+  connectIdp,
+  cookieSealer,
+  fesGate,
+  oidcSettingsFromEnv,
+  readVersion,
+} from '@shop-shell/server-common';
+import { createApp, type FesAuth } from './app.js';
+import { signInRoutes } from './sign-in.js';
 
 const port = Number(process.env.PORT ?? 3001);
 const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:4001';
 const clientDist = resolve(process.env.CLIENT_DIST ?? '../client/dist');
 const backendTimeoutMs = Number(process.env.BACKEND_TIMEOUT_MS ?? 3000);
 
+function required(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} must be set when AUTH_ENABLED=true`);
+  return value;
+}
+
+// Sign-in (MVP-2) is off unless AUTH_ENABLED=true.
+function signIn(): FesAuth | undefined {
+  const settings = oidcSettingsFromEnv();
+  if (!settings) return undefined;
+  const { idp, adapter } = connectIdp(settings);
+  const gate = fesGate({
+    idp,
+    adapter,
+    signInClientId: settings.clientId,
+    backendUrl,
+    backendTimeoutMs,
+  });
+  const routes = signInRoutes({
+    idp,
+    adapter,
+    publicOrigin: required('PUBLIC_ORIGIN'),
+    sealer: cookieSealer(required('AUTH_COOKIE_KEY')),
+  });
+  return { signIn: routes, page: gate.page, api: gate.api };
+}
+
+const auth = signIn();
 const server = createApp({
   backendUrl,
   clientDist,
@@ -14,7 +51,8 @@ const server = createApp({
   backendTimeoutMs,
   // BACKEND_AUTH=google on Cloud Run, where the backend is private.
   backendHeaders: backendAuth(process.env.BACKEND_AUTH, backendUrl),
+  ...(auth ? { auth } : {}),
 }).listen(port, () => {
-  console.log(`shell FES on http://localhost:${port}`);
+  console.log(`shell FES on http://localhost:${port}${auth ? ' (sign-in on)' : ''}`);
 });
 closeOnSignal(server);

@@ -128,3 +128,21 @@ describe('shell FES backend auth', () => {
     server.close();
   });
 });
+
+describe('sign-in marker on the page (MVP-2)', () => {
+  const pass: express.RequestHandler = (_req, _res, next) => {
+    next();
+  };
+  const auth = { signIn: express.Router(), page: pass, api: pass };
+
+  it('is on the page only when sign-in is on, so the client asks for the user only then', async () => {
+    const off = await request(app()).get('/catalog');
+    expect(off.text).not.toContain('shop-sign-in');
+    const on = await request(
+      createApp({ backendUrl, clientDist, version, backendTimeoutMs: 1000, auth }),
+    ).get('/catalog');
+    expect(on.status).toBe(200);
+    expect(on.text).toContain('<meta name="shop-sign-in" content="on">');
+    expect(on.headers['cache-control']).toBe('no-cache');
+  });
+});

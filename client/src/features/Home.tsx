@@ -1,6 +1,6 @@
 import { Heading, Paragraph } from '@arun-dev/ui';
 import { useEffect, useState } from 'react';
-import { fetchWithTimeout } from '../timeouts';
+import { apiFetch } from '../auth';
 
 export default function Home() {
   const [greeting, setGreeting] = useState<string>();
@@ -8,7 +8,7 @@ export default function Home() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchWithTimeout('/api/shell/greeting', controller.signal)
+    apiFetch('/api/shell/greeting', controller.signal)
       .then((res) =>
         res.ok ? (res.json() as Promise<{ message: string }>) : Promise.reject(new Error()),
       )

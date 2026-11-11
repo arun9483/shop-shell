@@ -4,12 +4,13 @@ import { BrowserAgent } from '@newrelic/browser-agent/loaders/browser-agent';
 // else so it sees every error. MFEs never use it directly; they call the standard `reportError`.
 const env = import.meta.env;
 
-if (env.VITE_NEW_RELIC_LICENSE_KEY && env.VITE_NEW_RELIC_APPLICATION_ID) {
+function startAgent(): BrowserAgent | undefined {
+  if (!env.VITE_NEW_RELIC_LICENSE_KEY || !env.VITE_NEW_RELIC_APPLICATION_ID) return undefined;
   const keys = {
     licenseKey: env.VITE_NEW_RELIC_LICENSE_KEY,
     applicationID: env.VITE_NEW_RELIC_APPLICATION_ID,
   };
-  new BrowserAgent({
+  return new BrowserAgent({
     init: {
       distributed_tracing: { enabled: true },
       privacy: { cookies_enabled: true },
@@ -24,3 +25,9 @@ if (env.VITE_NEW_RELIC_LICENSE_KEY && env.VITE_NEW_RELIC_APPLICATION_ID) {
     },
   });
 }
+
+/**
+ * The browser agent, when its keys are set. Only the Shell uses it directly: after sign-in it tags
+ * every event with the user's `sub` (`setUserId`), never an email or username.
+ */
+export const browserAgent = startAgent();

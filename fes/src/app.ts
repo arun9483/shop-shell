@@ -1,5 +1,6 @@
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import express, { type Express } from 'express';
+import express, { type Express, type RequestHandler, type Router } from 'express';
 import {
   forward,
   noBackendAuth,
@@ -8,8 +9,19 @@ import {
   notFound,
   problemHandler,
   traceResponse,
+  userBearer,
   type VersionInfo,
 } from '@shop-shell/server-common';
+
+/** Sign-in for the shop (MVP-2), when `AUTH_ENABLED=true`. */
+export interface FesAuth {
+  /** `/auth/*`: the sign-in lifecycle. */
+  signIn: Router;
+  /** Pages: no valid sign-in → sign-in page. */
+  page: RequestHandler;
+  /** `/api/shell/*`: no valid sign-in → 401, no Shell role → 403. */
+  api: RequestHandler;
+}
 
 export interface FesConfig {
   /** The Shell's backend service, e.g. the mock backend in development. */
@@ -21,9 +33,18 @@ export interface FesConfig {
   backendTimeoutMs: number;
   /** Auth for backend calls: a Google identity token on Cloud Run, nothing locally. */
   backendHeaders?: BackendHeaders;
+  /** Off (MVP-1 behaviour) unless given. */
+  auth?: FesAuth;
 }
 
 const NO_CACHE = 'no-cache';
+const SIGN_IN_MARKER = '<meta name="shop-sign-in" content="on">';
+
+function withSignInMarker(html: string): string {
+  return html.includes('</head>')
+    ? html.replace('</head>', `${SIGN_IN_MARKER}</head>`)
+    : html.replace(/^(<!doctype html>)?/i, `$1${SIGN_IN_MARKER}`);
+}
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 
 async function backendReady(
@@ -44,6 +65,7 @@ export function createApp({
   version,
   backendTimeoutMs,
   backendHeaders = noBackendAuth,
+  auth,
 }: FesConfig): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -54,14 +76,29 @@ export function createApp({
     }),
   );
 
+  if (auth) app.use(auth.signIn);
+
+  // Backend calls carry the user's lightweight access token when sign-in is on.
+  const headersFor = async (res: express.Response) => ({
+    ...(await backendHeaders()),
+    ...userBearer(res),
+  });
+
   const api = express.Router();
   api.use(traceResponse);
+  if (auth) {
+    api.use(auth.api);
+    // The gate has just asked the backend's /me: its answer is the user.
+    api.get('/me', (_req, res) => {
+      res.set('Cache-Control', 'no-store').set('Vary', 'Cookie').json(res.locals.me);
+    });
+  }
   api.get('/greeting', async (_req, res) =>
-    forward(res, `${backendUrl}/greeting`, backendTimeoutMs, await backendHeaders()),
+    forward(res, `${backendUrl}/greeting`, backendTimeoutMs, await headersFor(res)),
   );
   api.get('/test-error', async (req, res) => {
     if (req.query.in === 'backend') {
-      await forward(res, `${backendUrl}/test-error`, backendTimeoutMs, await backendHeaders());
+      await forward(res, `${backendUrl}/test-error`, backendTimeoutMs, await headersFor(res));
       return;
     }
     throw new Error('Shell FES test error');
@@ -81,7 +118,16 @@ export function createApp({
   );
   // Missing files are 404s, not the app shell.
   app.use('/assets', notFound);
-  // Every other GET is a client route, including deep links into MFEs.
+  // Every other GET is a client route, including deep links into MFEs: signed in only, with auth on.
+  if (auth) {
+    // The page says sign-in is on, so the client asks for the user only then: with sign-in off it
+    // makes no extra request (MVP-1). Read once: the client's files change only with a deploy.
+    let page: string | undefined;
+    app.get('/{*path}', auth.page, (_req, res) => {
+      page ??= withSignInMarker(readFileSync(join(clientDist, 'index.html'), 'utf8'));
+      res.set('Cache-Control', NO_CACHE).type('html').send(page);
+    });
+  }
   app.get('/{*path}', (_req, res) => {
     res.set('Cache-Control', NO_CACHE).sendFile(join(clientDist, 'index.html'));
   });
