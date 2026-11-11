@@ -7,6 +7,11 @@ import { expectNoAxeViolations, origins, scripts, start, stopAll, untilUp } from
 
 const stubDir = resolve(import.meta.dirname, '../../../packages/shell-stub');
 
+// The tests here start servers on fixed ports, so they run in order in one worker: with workers in
+// parallel, a second worker's stub could not take the port, answer from the first worker's stub, and
+// lose it when the first worker finished.
+test.describe.configure({ mode: 'default' });
+
 test.afterAll(stopAll);
 
 /** The brand values a page resolves: font, accent colour and link colour. */

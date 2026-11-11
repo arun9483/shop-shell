@@ -111,5 +111,12 @@ export function keycloakAdapter(idp: () => Promise<Idp>, timeoutMs = 3000): IdpA
       return (sessions ?? []).some((session) => session.id === sid);
     },
     isAccessToken: (_header, claims) => claims.typ === 'Bearer',
+    serviceRoles: (claims, client) => {
+      const access = claims.resource_access as Record<string, { roles?: unknown }> | undefined;
+      const roles = access?.[client]?.roles;
+      return Array.isArray(roles)
+        ? roles.filter((role): role is string => typeof role === 'string')
+        : [];
+    },
   };
 }

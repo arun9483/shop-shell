@@ -32,6 +32,13 @@ export {
   devFesGate,
   type DevUser,
 } from './dev-bypass.js';
+export {
+  requireService,
+  serviceCaller,
+  USER_SUB_HEADER,
+  type ServiceCaller,
+  type ServiceOptions,
+} from './service.js';
 export { fesGate, loginUrl, userBearer, type FesGateOptions } from './fes.js';
 
 import type { OidcSettings } from './config.js';

@@ -350,3 +350,17 @@ test.describe('Catalog and Cart', () => {
     }
   });
 });
+
+// Phase 4: Cart's backend reads names and prices from Catalog's backend with its own service access
+// token. bob has no Catalog role, yet his cart shows them: Catalog trusts the calling service.
+test.describe('backend to backend', () => {
+  for (const user of ['alice', 'bob'] as const) {
+    test(`${user}'s cart shows names and prices from Catalog`, async ({ page }) => {
+      await login(page, user, '/cart');
+      await expect(page.getByRole('link', { name: 'Stoneware mug' })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Steel kettle' })).toBeVisible();
+      const cart = (await (await page.request.get('/api/cart')).json()) as { total: number };
+      expect(cart.total).toBe(349 * 2 + 1499);
+    });
+  }
+});
