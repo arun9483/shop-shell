@@ -2,7 +2,7 @@ import { Alert, Button, Heading, Paragraph, Spinner } from '@arun-dev/ui';
 import { Suspense, useEffect, useState, type ComponentType } from 'react';
 import styles from './App.module.css';
 import { ErrorBoundary } from './ErrorBoundary';
-import { activeMfe, MFE_ERROR_EVENT, MFE_ROOT_ID } from './mfes';
+import { activeMfe, MFE_ERROR_EVENT, MFE_NO_ACCESS_EVENT, MFE_ROOT_ID } from './mfes';
 import { NavLink, usePathname } from './routing';
 import { ThemeSwitcher } from './ThemeSwitcher';
 import { lazyWithTimeout } from './timeouts';
@@ -15,19 +15,33 @@ const features: Record<string, ComponentType> = {
   '/test-error': lazyWithTimeout(() => import('./features/TestError')),
 };
 
-function useFailedMfes(): ReadonlySet<string> {
-  const [failed, setFailed] = useState<ReadonlySet<string>>(new Set());
+/** The names of the MFEs that fired `eventName`. */
+function useMfeEvents(eventName: string): ReadonlySet<string> {
+  const [names, setNames] = useState<ReadonlySet<string>>(new Set());
   useEffect(() => {
-    const onError = (event: Event) => {
+    const onEvent = (event: Event) => {
       const name: unknown = (event as CustomEvent).detail;
-      if (typeof name === 'string') setFailed((names) => new Set(names).add(name));
+      if (typeof name === 'string') setNames((seen) => new Set(seen).add(name));
     };
-    window.addEventListener(MFE_ERROR_EVENT, onError);
+    window.addEventListener(eventName, onEvent);
     return () => {
-      window.removeEventListener(MFE_ERROR_EVENT, onError);
+      window.removeEventListener(eventName, onEvent);
     };
-  }, []);
-  return failed;
+  }, [eventName]);
+  return names;
+}
+
+/** The user has no role in this MFE (MVP-2): the rest of the shop works. */
+function NoAccess({ name }: { name: string }) {
+  const title = name.charAt(0).toUpperCase() + name.slice(1);
+  return (
+    <Alert.Root tone="warning">
+      <Alert.Title>You do not have access to {title}</Alert.Title>
+      <Alert.Description>
+        Ask for access to use it. The rest of the shop still works.
+      </Alert.Description>
+    </Alert.Root>
+  );
 }
 
 function Unavailable({ what }: { what: string }) {
@@ -65,7 +79,8 @@ function NotFound() {
 export function App() {
   const pathname = usePathname();
   const mfe = activeMfe(pathname);
-  const failed = useFailedMfes();
+  const failed = useMfeEvents(MFE_ERROR_EVENT);
+  const forbidden = useMfeEvents(MFE_NO_ACCESS_EVENT);
   const Feature = features[pathname] ?? NotFound;
 
   return (
@@ -104,7 +119,10 @@ export function App() {
             </Suspense>
           </ErrorBoundary>
         )}
-        {mfe && failed.has(mfe.name) && <Unavailable what={`The ${mfe.name} section`} />}
+        {mfe && forbidden.has(mfe.name) && <NoAccess name={mfe.name} />}
+        {mfe && failed.has(mfe.name) && !forbidden.has(mfe.name) && (
+          <Unavailable what={`The ${mfe.name} section`} />
+        )}
         {/* single-spa mounts the active MFE here; React never renders inside it. */}
         <div id={MFE_ROOT_ID} hidden={!mfe} />
       </main>

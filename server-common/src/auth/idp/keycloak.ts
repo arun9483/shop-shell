@@ -1,5 +1,5 @@
 import * as client from 'openid-client';
-import type { Idp } from '../metadata.js';
+import { ownClient, type Idp } from '../metadata.js';
 import { IdpUnavailableError, type IdpAdapter, type IdpUser } from './adapter.js';
 
 // Keycloak 26.8's admin API accepts only tokens with this scope. It is optional on each backend's
@@ -57,7 +57,7 @@ export function keycloakAdapter(idp: () => Promise<Idp>, timeoutMs = 3000): IdpA
 
   async function serviceToken(): Promise<string> {
     if (token && token.until > Date.now()) return token.value;
-    const { config } = await idp();
+    const { config } = ownClient(await idp());
     try {
       const grant = await client.clientCredentialsGrant(config, { scope: ADMIN_SCOPE });
       const lifetimeMs = (grant.expires_in ?? 60) * 1000;

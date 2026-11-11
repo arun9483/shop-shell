@@ -16,6 +16,8 @@ export interface AccessTokenChecks {
 export interface CheckedToken {
   sub: string;
   sid: string;
+  /** The APIs the token is for: a unit's backend is here only when the user holds one of its roles. */
+  audience: string[];
 }
 
 /**
@@ -52,7 +54,14 @@ export async function checkAccessToken(
   if (typeof sub !== 'string' || typeof sid !== 'string') {
     throw new HttpError(401, 'The access token has no user or session');
   }
-  return { sub, sid };
+  const { aud } = payload;
+  const audience =
+    typeof aud === 'string'
+      ? [aud]
+      : Array.isArray(aud)
+        ? aud.filter((a) => typeof a === 'string')
+        : [];
+  return { sub, sid, audience };
 }
 
 /** The bearer token of a request, if any. */

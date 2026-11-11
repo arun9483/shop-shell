@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiFetch, goToLogin } from './auth';
+import { apiFetch, goToLogin, loginIsOn } from './auth';
 import { browserAgent } from './monitoring';
 
 /** The logged-in user as `/api/shell/me` gives it: OpenID Connect fields and the Shell's roles. */
@@ -20,11 +20,6 @@ const channel =
 
 function isUser(value: unknown): value is ShopUser {
   return typeof value === 'object' && value !== null && typeof (value as ShopUser).sub === 'string';
-}
-
-/** The Shell FES marks the page when login is on (MVP-2); otherwise nothing is asked (MVP-1). */
-function loginIsOn(): boolean {
-  return document.querySelector('meta[name="shop-login"]') !== null;
 }
 
 async function loadUser(): Promise<ShopUser | null> {
