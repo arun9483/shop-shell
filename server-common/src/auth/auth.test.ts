@@ -13,6 +13,7 @@ import { cookieSealer, readCookie } from './cookies.js';
 import { fesGate } from './fes.js';
 import { IdpUnavailableError, type IdpAdapter, type IdpUser } from './idp/adapter.js';
 import type { Idp } from './metadata.js';
+import { requireService } from './service.js';
 import { checkAccessToken } from './token.js';
 
 vi.mock('newrelic', () => ({ default: { setUserID: vi.fn(), getTraceMetadata: () => ({}) } }));
@@ -71,6 +72,9 @@ function fakeAdapter(overrides: Partial<IdpAdapter> = {}): IdpAdapter & { calls:
     },
     isAccessToken: (_header: Record<string, unknown>, claims: Record<string, unknown>) =>
       claims.typ === 'Bearer',
+    serviceRoles: (claims: Record<string, unknown>, client: string) =>
+      (claims.resource_access as Record<string, { roles: string[] }> | undefined)?.[client]
+        ?.roles ?? [],
     ...overrides,
   };
   return adapter;
@@ -362,5 +366,68 @@ describe('devBypassFromEnv', () => {
     });
     app.use(problemHandler);
     expect((await request(app).get('/x')).status).toBe(403);
+  });
+});
+
+describe('requireService (provider backend, ADR 0005)', () => {
+  function serviceToken(claims: JWTPayload = {}): Promise<string> {
+    return new SignJWT({
+      typ: 'Bearer',
+      azp: 'cart-backend',
+      aud: ['catalog-backend'],
+      resource_access: { 'catalog-backend': { roles: ['catalog-api:read-products'] } },
+      ...claims,
+    })
+      .setProtectedHeader({ alg: 'RS256', kid: 'k1' })
+      .setIssuer(ISSUER)
+      .setSubject('service-account-cart-backend')
+      .setIssuedAt()
+      .setExpirationTime('5m')
+      .sign(signingKey);
+  }
+
+  function providerApp(): express.Express {
+    const app = express();
+    app.get(
+      '/service/products',
+      requireService({
+        idp,
+        adapter: fakeAdapter(),
+        audience: 'catalog-backend',
+        role: 'catalog-api:read-products',
+      }),
+      (_req, res) => {
+        res.json(res.locals.caller);
+      },
+    );
+    app.use(problemHandler);
+    return app;
+  }
+
+  it('lets a granted service in, naming the caller and the user it acts for', async () => {
+    const res = await request(providerApp())
+      .get('/service/products')
+      .set('authorization', `Bearer ${await serviceToken()}`)
+      .set('x-shop-user-sub', 'user-1');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ clientId: 'cart-backend', userSub: 'user-1' });
+  });
+
+  it.each([
+    ['no token', undefined],
+    ['a user token (it has a sid)', () => serviceToken({ sid: 'sid-1' })],
+    ['another audience', () => serviceToken({ aud: ['cart-backend'] })],
+    ['another key', () => token({}, otherKey)],
+  ])('refuses %s with 401', async (_what, make) => {
+    const req = request(providerApp()).get('/service/products');
+    const res = make ? await req.set('authorization', `Bearer ${await make()}`) : await req;
+    expect(res.status).toBe(401);
+  });
+
+  it('refuses a service without the API role with 403', async () => {
+    const res = await request(providerApp())
+      .get('/service/products')
+      .set('authorization', `Bearer ${await serviceToken({ resource_access: {} })}`);
+    expect(res.status).toBe(403);
   });
 });

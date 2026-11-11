@@ -24,6 +24,11 @@ export interface IdpAdapter {
   isSessionActive(sub: string, sid: string): Promise<boolean>;
   /** FES and backend: true only for an access token, never an ID or refresh token. */
   isAccessToken: (header: Record<string, unknown>, claims: Record<string, unknown>) => boolean;
+  /**
+   * Provider backend and router: the roles a service access token holds on `client` (e.g.
+   * `catalog-backend`), read from the token itself. Each IdP lays role claims out its own way.
+   */
+  serviceRoles: (claims: Record<string, unknown>, client: string) => string[];
 }
 
 /** The IdP could not answer: a check that needs it answers 503, never "allow". */
