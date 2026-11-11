@@ -8,6 +8,7 @@ import { notFound, problemHandler } from '../problem.js';
 import { meHandler, requireUser } from './backend.js';
 import { TtlCache } from './cache.js';
 import { oidcSettingsFromEnv } from './config.js';
+import { devBypassFromEnv, devRequireUser } from './dev-bypass.js';
 import { cookieSealer, readCookie } from './cookies.js';
 import { fesGate } from './fes.js';
 import { IdpUnavailableError, type IdpAdapter, type IdpUser } from './idp/adapter.js';
@@ -33,7 +34,7 @@ beforeAll(async () => {
     clientId: 'shell-fes',
     clientSecret: 's',
   };
-  idp = () => Promise.resolve({ settings, keys, config: {} as Idp['config'] });
+  idp = () => Promise.resolve({ settings, keys });
 });
 
 function token(claims: JWTPayload = {}, key = signingKey, expiresIn = '5m'): Promise<string> {
@@ -91,6 +92,7 @@ describe('checkAccessToken', () => {
     ).resolves.toEqual({
       sub: 'user-1',
       sid: 'sid-1',
+      audience: ['shell-backend'],
     });
   });
 
@@ -260,6 +262,7 @@ describe('fesGate (FES)', () => {
       adapter: fakeAdapter(),
       loginClientId: 'shell-fes',
       backendUrl,
+      backendAudience: 'shell-backend',
       backendTimeoutMs: 1000,
       cacheMs: 0,
     });
@@ -296,6 +299,16 @@ describe('fesGate (FES)', () => {
     expect(page.headers.location).toBe('/auth/login?returnTo=%2Fpage%3Fx%3D1');
   });
 
+  it('answers 403 at once, without asking the backend, for a token not naming its backend', async () => {
+    meStatus = 200;
+    const before = meCalls;
+    const res = await request(fesApp())
+      .get('/api/x')
+      .set('cookie', `shop_at=${await token({ aud: ['cart-backend'] })}`);
+    expect(res.status).toBe(403);
+    expect(meCalls).toBe(before);
+  });
+
   it("passes the backend's 401 and 403 back, and fails closed when it cannot answer", async () => {
     const cookie = `shop_at=${await token()}`;
     meStatus = 401;
@@ -305,5 +318,49 @@ describe('fesGate (FES)', () => {
     meStatus = 500;
     expect((await request(fesApp()).get('/api/x').set('cookie', cookie)).status).toBe(503);
     expect(meCalls).toBeGreaterThan(0);
+  });
+});
+
+describe("oidcSettingsFromEnv without a client (an MFE's FES)", () => {
+  it('needs only the issuer', () => {
+    expect(
+      oidcSettingsFromEnv({ AUTH_ENABLED: 'true', OIDC_ISSUER_URL: ISSUER }, { withClient: false }),
+    ).toEqual({ issuer: ISSUER, internalUrl: ISSUER });
+  });
+});
+
+describe('devBypassFromEnv', () => {
+  it('is off unless AUTH_DEV_BYPASS=true', () => {
+    expect(devBypassFromEnv({})).toBeUndefined();
+  });
+
+  it('acts as the configured user and roles', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    expect(
+      devBypassFromEnv({
+        AUTH_DEV_BYPASS: 'true',
+        AUTH_DEV_USER_SUB: 'dev-1',
+        AUTH_DEV_USER_ROLES: 'a, b',
+      }),
+    ).toEqual({ sub: 'dev-1', roles: ['a', 'b'] });
+    expect(console.warn).toHaveBeenCalled();
+  });
+
+  it.each([{ NODE_ENV: 'production' }, { K_SERVICE: 'catalog-fes' }])(
+    'refuses to start with %j',
+    (extra) => {
+      expect(() => devBypassFromEnv({ AUTH_DEV_BYPASS: 'true', ...extra })).toThrow(
+        'development only',
+      );
+    },
+  );
+
+  it('answers 403 without a role', async () => {
+    const app = express();
+    app.get('/x', devRequireUser({ sub: 'dev', roles: [] }), (_req, res) => {
+      res.end();
+    });
+    app.use(problemHandler);
+    expect((await request(app).get('/x')).status).toBe(403);
   });
 });

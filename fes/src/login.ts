@@ -9,6 +9,7 @@ import {
   type CookieSealer,
   type Idp,
   type IdpAdapter,
+  ownClient,
 } from '@shop-shell/server-common';
 import { Router, type Request, type Response } from 'express';
 import * as client from 'openid-client';
@@ -78,11 +79,11 @@ export function loginRoutes({ idp, adapter, publicOrigin, sealer }: LoginOptions
   async function loggedIn(req: Request): Promise<boolean> {
     const token = readCookie(req, COOKIES.accessToken.name);
     if (!token) return false;
-    const { settings, keys } = await idp();
+    const current = await idp();
     return checkAccessToken(token, {
-      keys,
-      issuer: settings.issuer,
-      authorizedParty: settings.clientId,
+      keys: current.keys,
+      issuer: current.settings.issuer,
+      authorizedParty: ownClient(current).clientId,
       isAccessToken: adapter.isAccessToken,
     }).then(
       () => true,
@@ -91,7 +92,7 @@ export function loginRoutes({ idp, adapter, publicOrigin, sealer }: LoginOptions
   }
 
   router.get('/auth/login', async (req, res) => {
-    const { config } = await idp();
+    const { config } = ownClient(await idp());
     const verifier = client.randomPKCECodeVerifier();
     const state = client.randomState();
     const nonce = client.randomNonce();
@@ -125,7 +126,7 @@ export function loginRoutes({ idp, adapter, publicOrigin, sealer }: LoginOptions
     }
     const attempt = JSON.parse(opened) as Attempt;
     clearCookie(res, cookie);
-    const { config } = await idp();
+    const { config } = ownClient(await idp());
     let tokens: client.TokenEndpointResponse;
     try {
       tokens = await client.authorizationCodeGrant(config, new URL(req.originalUrl, publicOrigin), {
@@ -154,7 +155,7 @@ export function loginRoutes({ idp, adapter, publicOrigin, sealer }: LoginOptions
       clearSession(res);
       throw new HttpError(401, 'Login required');
     }
-    const { config } = await idp();
+    const { config } = ownClient(await idp());
     let tokens: client.TokenEndpointResponse;
     try {
       tokens = await client.refreshTokenGrant(config, refreshToken);
@@ -175,14 +176,12 @@ export function loginRoutes({ idp, adapter, publicOrigin, sealer }: LoginOptions
     const sealed = readCookie(req, COOKIES.idToken.name);
     const idToken = sealed && (await sealer.open(sealed));
     clearSession(res);
-    const { config, settings } = await idp();
+    const { config, clientId } = ownClient(await idp());
     const postLogout = { post_logout_redirect_uri: `${publicOrigin}/auth/logged-out` };
     // With the ID token the IdP logs out at once; without it, it asks the user to confirm.
     const url = client.buildEndSessionUrl(
       config,
-      idToken
-        ? { ...postLogout, id_token_hint: idToken }
-        : { ...postLogout, client_id: settings.clientId },
+      idToken ? { ...postLogout, id_token_hint: idToken } : { ...postLogout, client_id: clientId },
     );
     res.redirect(303, url.href);
   });

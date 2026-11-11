@@ -229,3 +229,124 @@ test.describe('several tabs', () => {
     await expect(first.getByText(names.alice)).toHaveCount(0);
   });
 });
+
+// Phase 3: Catalog and Cart check logins the Shell made.
+test.describe('Catalog and Cart', () => {
+  test('without login, MFE entries and APIs answer 401; hashed files stay public', async ({
+    page,
+    request,
+  }) => {
+    for (const path of [
+      '/mfe/catalog/entry.js',
+      '/api/catalog/products',
+      '/mfe/cart/entry.js',
+      '/api/cart',
+    ]) {
+      const res = await request.get(path);
+      expect(res.status(), path).toBe(401);
+      expect(res.headers()['content-type'], path).toContain('application/problem+json');
+    }
+    await login(page, 'alice');
+    const entry = await (await page.request.get('/mfe/catalog/entry.js')).text();
+    const hashed = /assets\/entry-[\w-]+\.js/.exec(entry)?.[0] ?? '';
+    expect(hashed).not.toBe('');
+    expect((await request.get(`/mfe/catalog/${hashed}`)).status()).toBe(200);
+  });
+
+  test('a logged-in user uses both; their requests carry only shop_at', async ({ page }) => {
+    const sent: { url: string; cookie: string }[] = [];
+    page.on('request', async (req) => {
+      const { origin: from, pathname } = new URL(req.url());
+      if (from === origin && /^\/(mfe|api)\/(catalog|cart)\//.test(pathname)) {
+        sent.push({ url: pathname, cookie: (await req.allHeaders()).cookie ?? '' });
+      }
+    });
+    await login(page, 'alice', '/catalog');
+    await expect(page.getByRole('link', { name: 'Stoneware mug' })).toBeVisible();
+    await page.getByRole('link', { name: 'Cart', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Cart' })).toBeVisible();
+    await expect(page.getByText('× 2')).toBeVisible();
+    const fetched = sent.filter((s) => s.cookie !== '');
+    expect(fetched.length).toBeGreaterThan(2);
+    for (const { url, cookie } of fetched) {
+      expect(cookie, url).toContain('shop_at=');
+      expect(cookie, url).not.toMatch(/shop_rt=|shop_id=/);
+    }
+  });
+
+  test('without a Catalog role: no access to Catalog, the rest of the shop works', async ({
+    page,
+  }) => {
+    await login(page, 'bob');
+    expect((await page.request.get('/api/catalog/products')).status()).toBe(403);
+    expect((await page.request.get('/mfe/catalog/entry.js')).status()).toBe(403);
+    await page.getByRole('link', { name: 'Catalog' }).click();
+    await expect(page.getByText('You do not have access to Catalog')).toBeVisible();
+    for (const theme of ['light', 'dark']) {
+      await page.getByRole('combobox', { name: 'Theme' }).selectOption(theme);
+      await expectNoAxeViolations(page);
+    }
+    await page.getByRole('link', { name: 'Cart', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Cart' })).toBeVisible();
+    await expect(page.getByText(names.bob)).toBeVisible();
+  });
+
+  test("/api/catalog/me and /api/cart/me give only that unit's roles", async ({ page }) => {
+    await login(page, 'alice');
+    const catalog = await page.request.get('/api/catalog/me');
+    const cart = await page.request.get('/api/cart/me');
+    expect(catalog.headers()['cache-control']).toBe('no-store');
+    expect(await catalog.json()).toMatchObject({
+      preferred_username: 'alice',
+      roles: ['catalog-editor', 'catalog-viewer'],
+    });
+    expect(await cart.json()).toMatchObject({ preferred_username: 'alice', roles: ['cart-user'] });
+    expect(JSON.stringify(await catalog.json())).not.toMatch(/sid|eyJ/);
+  });
+
+  test('an expired login is refreshed for an MFE API call and for an MFE entry', async ({
+    page,
+    context,
+  }) => {
+    const refreshes: number[] = [];
+    page.on('response', (res) => {
+      if (res.url() === `${origin}/auth/refresh`) refreshes.push(res.status());
+    });
+    await login(page, 'alice', '/catalog');
+    await expect(page.getByRole('link', { name: 'Stoneware mug' })).toBeVisible();
+
+    await context.clearCookies({ name: 'shop_at' });
+    await page.getByRole('link', { name: 'Stoneware mug' }).click();
+    await expect(page.getByText('Holds 350 ml and keeps tea warm.')).toBeVisible();
+    expect(refreshes).toEqual([204]);
+
+    // Cart's entry has not been loaded yet: its import is refused, refreshed and loaded again.
+    await context.clearCookies({ name: 'shop_at' });
+    await page.getByRole('link', { name: 'Cart', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Cart' })).toBeVisible();
+    expect(refreshes).toEqual([204, 204]);
+  });
+
+  test('after logout, Catalog and Cart refuse the old login within 30 s', async ({
+    page,
+    context,
+  }) => {
+    test.setTimeout(90_000);
+    await login(page, 'alice', '/catalog');
+    await expect(page.getByRole('link', { name: 'Stoneware mug' })).toBeVisible();
+    const oldAccess = (await cookie(context, 'shop_at'))?.value ?? '';
+    await page.getByRole('button', { name: 'Log out' }).click();
+    await onLoginPage(page);
+    for (const path of ['/api/catalog/products', '/api/cart']) {
+      await expect
+        .poll(
+          async () =>
+            (
+              await page.request.get(path, { headers: { cookie: `shop_at=${oldAccess}` } })
+            ).status(),
+          { timeout: 40_000, intervals: [2_000] },
+        )
+        .toBe(401);
+    }
+  });
+});

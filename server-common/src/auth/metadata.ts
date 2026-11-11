@@ -5,8 +5,8 @@ import { IdpUnavailableError } from './idp/adapter.js';
 
 export interface Idp {
   settings: OidcSettings;
-  /** `openid-client`'s configuration for this server's own client. */
-  config: client.Configuration;
+  /** `openid-client`'s configuration for this server's own client, when it has one. */
+  config?: client.Configuration;
   /** The IdP's public keys, fetched inside the network and cached by `jose`. */
   keys: JWTVerifyGetKey;
 }
@@ -33,9 +33,10 @@ async function discover(settings: OidcSettings, timeoutMs: number): Promise<Idp>
   }
   if (!metadata.jwks_uri) throw new Error('IdP metadata has no jwks_uri');
 
+  const keys = createRemoteJWKSet(new URL(metadata.jwks_uri), { timeoutDuration: timeoutMs });
+  if (!settings.clientId) return { settings, keys };
   const config = new client.Configuration(metadata, settings.clientId, settings.clientSecret);
   if (new URL(settings.internalUrl).protocol === 'http:') client.allowInsecureRequests(config);
-  const keys = createRemoteJWKSet(new URL(metadata.jwks_uri), { timeoutDuration: timeoutMs });
   return { settings, config, keys };
 }
 
@@ -52,4 +53,12 @@ export function lazyIdp(settings: OidcSettings, timeoutMs = 3000): () => Promise
     });
     return pending;
   };
+}
+
+/** This server's own client, for calls that need it: login, refresh, service access tokens. */
+export function ownClient(idp: Idp): { config: client.Configuration; clientId: string } {
+  if (!idp.config || !idp.settings.clientId) {
+    throw new Error('This server has no client at the IdP (OIDC_CLIENT_ID, OIDC_CLIENT_SECRET)');
+  }
+  return { config: idp.config, clientId: idp.settings.clientId };
 }

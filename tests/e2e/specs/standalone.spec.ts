@@ -151,3 +151,66 @@ for (const [index, mfe] of mfes.entries()) {
     });
   });
 }
+
+// MVP-2: standalone without an IdP, with the development-only login bypass.
+test.describe('catalog standalone, login bypass (development only)', () => {
+  const catalog = mfes.find((m) => m.name === 'catalog');
+  const fesPort = 3612;
+  const backendPort = 4612;
+  const stub = 'http://localhost:3611';
+  const bypass = {
+    AUTH_DEV_BYPASS: 'true',
+    AUTH_DEV_USER_SUB: 'dev-alice',
+    AUTH_DEV_USER_ROLES: 'catalog-viewer',
+  };
+
+  test.skip(!catalog?.available, 'shop-catalog is not checked out next to shop-shell and built');
+
+  test.beforeAll(async () => {
+    if (!catalog) return;
+    start(`${catalog.dir}/mock-backend`, { ...bypass, PORT: String(backendPort) });
+    start(`${catalog.dir}/fes`, {
+      ...bypass,
+      PORT: String(fesPort),
+      BACKEND_URL: `http://localhost:${backendPort}`,
+      CLIENT_DIST: '../client/dist',
+    });
+    await untilUp(`http://localhost:${fesPort}/health/ready`);
+    start(stubDir, {}, [
+      'bin/shell-stub.js',
+      '--name',
+      'catalog',
+      '--mfe-url',
+      `http://localhost:${fesPort}`,
+      '--port',
+      '3611',
+    ]);
+    await untilUp(`${stub}/catalog`);
+  });
+
+  test('works as the configured user with no IdP, and says so on every response', async ({
+    page,
+  }) => {
+    const marked: (string | undefined)[] = [];
+    page.on('response', (res) => {
+      if (/\/(mfe|api)\/catalog\//.test(new URL(res.url()).pathname)) {
+        marked.push(res.headers()['x-auth-dev-bypass']);
+      }
+    });
+    await page.goto(`${stub}/catalog`);
+    await expect(page.getByRole('link', { name: 'Stoneware mug' })).toBeVisible();
+    expect(marked.length).toBeGreaterThan(1);
+    expect(marked.every((value) => value === 'true')).toBe(true);
+    const me = await page.request.get(`${stub}/api/catalog/me`);
+    expect(await me.json()).toMatchObject({ sub: 'dev-alice', roles: ['catalog-viewer'] });
+  });
+
+  test('refuses to start in production or on Cloud Run', async () => {
+    if (!catalog) return;
+    for (const extra of [{ NODE_ENV: 'production' }, { K_SERVICE: 'catalog-fes' }]) {
+      const child = start(`${catalog.dir}/fes`, { ...bypass, ...extra, PORT: '3613' });
+      const code = await new Promise<number | null>((resolve) => child.once('exit', resolve));
+      expect(code, JSON.stringify(extra)).not.toBe(0);
+    }
+  });
+});

@@ -1,5 +1,5 @@
-export { oidcSettingsFromEnv, type OidcSettings } from './config.js';
-export { lazyIdp, type Idp } from './metadata.js';
+export { oidcSettingsFromEnv, requiredEnv, type OidcSettings } from './config.js';
+export { lazyIdp, ownClient, type Idp } from './metadata.js';
 export {
   checkAccessToken,
   bearerToken,
@@ -25,6 +25,13 @@ export {
   type LoggedInUser,
   type BackendUserOptions,
 } from './backend.js';
+export {
+  devBypassFromEnv,
+  devBypassHeader,
+  devRequireUser,
+  devFesGate,
+  type DevUser,
+} from './dev-bypass.js';
 export { fesGate, loginUrl, userBearer, type FesGateOptions } from './fes.js';
 
 import type { OidcSettings } from './config.js';

@@ -1,4 +1,4 @@
-import { fetchWithTimeout } from './timeouts';
+import { fetchWithTimeout, timeouts } from './timeouts';
 
 // MVP-2 login, client side. Every client of the shop (the Shell and each MFE) carries this small
 // wrapper itself; they share only these URLs and names, never code.
@@ -13,6 +13,37 @@ export function loginUrl(): string {
 
 export function goToLogin(): void {
   window.location.assign(loginUrl());
+}
+
+/** The Shell FES marks the page when login is on (MVP-2); otherwise nothing is asked (MVP-1). */
+export function loginIsOn(): boolean {
+  return document.querySelector('meta[name="shop-login"]') !== null;
+}
+
+/** The status of `url` without its body, or 0 when it does not answer in time. */
+export async function headStatus(url: string): Promise<number> {
+  try {
+    const res = await fetch(url, {
+      method: 'HEAD',
+      cache: 'no-store',
+      signal: AbortSignal.timeout(timeouts.api),
+    });
+    return res.status;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * After a `401` for `url` that cannot be retried as a call (an MFE's entry): under the shared lock,
+ * check again (another tab may have refreshed), then refresh once. True when logged in again.
+ */
+export function refreshFor(url: string): Promise<boolean> {
+  return underRefreshLock(async () => {
+    if ((await headStatus(url)) !== 401) return true;
+    const refreshed = await fetch('/auth/refresh', { method: 'POST' });
+    return refreshed.ok;
+  });
 }
 
 // Without the Web Locks API, refreshes are still serialised within this page.

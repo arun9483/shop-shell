@@ -7,6 +7,7 @@ import {
   fesGate,
   oidcSettingsFromEnv,
   readVersion,
+  requiredEnv,
 } from '@shop-shell/server-common';
 import { createApp, type FesAuth } from './app.js';
 import { loginRoutes } from './login.js';
@@ -16,12 +17,6 @@ const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:4001';
 const clientDist = resolve(process.env.CLIENT_DIST ?? '../client/dist');
 const backendTimeoutMs = Number(process.env.BACKEND_TIMEOUT_MS ?? 3000);
 
-function required(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} must be set when AUTH_ENABLED=true`);
-  return value;
-}
-
 // Login (MVP-2) is off unless AUTH_ENABLED=true.
 function login(): FesAuth | undefined {
   const settings = oidcSettingsFromEnv();
@@ -30,15 +25,17 @@ function login(): FesAuth | undefined {
   const gate = fesGate({
     idp,
     adapter,
-    loginClientId: settings.clientId,
+    // The Shell FES logs users in as its own client, so it accepts that client's tokens.
+    loginClientId: requiredEnv('OIDC_CLIENT_ID'),
     backendUrl,
+    backendAudience: 'shell-backend',
     backendTimeoutMs,
   });
   const routes = loginRoutes({
     idp,
     adapter,
-    publicOrigin: required('PUBLIC_ORIGIN'),
-    sealer: cookieSealer(required('AUTH_COOKIE_KEY')),
+    publicOrigin: requiredEnv('PUBLIC_ORIGIN'),
+    sealer: cookieSealer(requiredEnv('AUTH_COOKIE_KEY')),
   });
   return { login: routes, page: gate.page, api: gate.api };
 }

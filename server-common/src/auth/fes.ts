@@ -14,6 +14,12 @@ export interface FesGateOptions {
   loginClientId: string;
   /** This unit's backend; its `/me` is the gate. */
   backendUrl: string;
+  /**
+   * This unit's backend's client, e.g. `catalog-backend`. The IdP puts it in a token's `aud` only when
+   * the user holds one of the unit's roles, so a valid token without it is a `403` at once, not a
+   * `401` that the client would take for an expired login.
+   */
+  backendAudience: string;
   backendTimeoutMs: number;
   /** How long the backend's answer for one session is reused. */
   cacheMs?: number;
@@ -44,6 +50,7 @@ export function fesGate({
   adapter,
   loginClientId,
   backendUrl,
+  backendAudience,
   backendTimeoutMs,
   cacheMs = 15_000,
 }: FesGateOptions): { page: RequestHandler; api: RequestHandler } {
@@ -70,8 +77,9 @@ export function fesGate({
     const { settings, keys } = await idp();
     let sub: string;
     let sid: string;
+    let audience: string[];
     try {
-      ({ sub, sid } = await checkAccessToken(token, {
+      ({ sub, sid, audience } = await checkAccessToken(token, {
         keys,
         issuer: settings.issuer,
         authorizedParty: loginClientId,
@@ -81,7 +89,9 @@ export function fesGate({
       if (error instanceof HttpError) return { status: 401 };
       throw error;
     }
-    const answer = await answers.get(`${sub} ${sid}`, () => ask(token));
+    const answer: GateAnswer = audience.includes(backendAudience)
+      ? await answers.get(`${sub} ${sid}`, () => ask(token))
+      : { status: 403 };
     if (answer.status !== 401) {
       newrelic.setUserID(sub);
       res.locals.accessToken = token;
