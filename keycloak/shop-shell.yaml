@@ -39,19 +39,6 @@ clients:
           access.token.claim: 'true'
           introspection.token.claim: 'true'
           lightweight.claim: 'true'
-      # Each unit's roles in /userinfo only, for the FES gate; never in a token.
-      - name: unit roles in userinfo
-        protocol: openid-connect
-        protocolMapper: oidc-usermodel-client-role-mapper
-        config:
-          multivalued: 'true'
-          claim.name: resource_access.${client_id}.roles
-          jsonType.label: String
-          access.token.claim: 'false'
-          id.token.claim: 'false'
-          lightweight.claim: 'false'
-          introspection.token.claim: 'false'
-          userinfo.token.claim: 'true'
 
   - clientId: shell-backend
     protocol: openid-connect
