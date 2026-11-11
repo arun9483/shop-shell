@@ -4,3 +4,4 @@ export { healthRouter, readVersion, type VersionInfo, type HealthOptions } from 
 export { forward } from './forward.js';
 export { closeOnSignal } from './shutdown.js';
 export { backendAuth, googleBackendAuth, noBackendAuth, type BackendHeaders } from './auth.js';
+export * from './auth/index.js';

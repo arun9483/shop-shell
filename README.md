@@ -55,7 +55,7 @@ deploy (deploy `shop-router` first) and ends by checking every unit through the 
 The workflow reads every identifier from GitHub: repository variables `GCP_PROJECT_ID`, `GCP_REGION`,
 `GCP_WIF_PROVIDER`, `GCP_DEPLOYER`, `CLOUDFLARE_ACCOUNT_ID`; the secret `CLOUDFLARE_API_TOKEN`;
 `staging` environment variables `PUBLIC_ORIGIN` and `VITE_NEW_RELIC_*`; and the secret
-`NEW_RELIC_USER_API_KEY`. No Google key is stored: GitHub Actions signs in with workload identity
+`NEW_RELIC_USER_API_KEY`. No Google key is stored: GitHub Actions logs in with workload identity
 federation.
 
 ## Check
@@ -74,6 +74,36 @@ Shell's fallback. MFE-specific pages are in `specs/<name>.spec.ts`.
 
 `/test-error?kind=` with `render`, `event`, `promise`, `fes` or `backend` triggers each kind of error
 for checking New Relic and source maps.
+
+## Login (MVP-2)
+
+Off by default: without `AUTH_ENABLED=true` the Shell is MVP-1 unchanged, and the client asks for no user.
+[shop-mfe-platform](https://github.com/arun9483/shop-mfe-platform)'s `docker/compose.sso.yaml` turns it on
+on Docker, with Keycloak; the design is
+[MVP-2](https://github.com/arun9483/arun-mfe-platform/blob/main/docs/mvp-2-sso.md).
+
+| Part                                      | What it does                                                                                                                                                                                                    |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shell FES `/auth/login`, `/auth/callback` | Signs users in as `shell-fes` (authorization code with PKCE), one encrypted cookie per attempt, then the three session cookies: `shop_at` (`Path=/`), `shop_rt` (`Path=/auth`), `shop_id` (`Path=/auth/logout`) |
+| `POST /auth/refresh`, `POST /auth/logout` | Same-origin only. Logout ends the IdP's session; the IdP then sends the browser to `/auth/logged-out`, which tells the other tabs                                                                               |
+| FES gate                                  | Pages and `/api/shell/*` need a valid `shop_at`; the gate asks the backend's `/me`, reused for 15 s                                                                                                             |
+| Backend                                   | Checks the token, then the user's session, account and Shell roles at the IdP with its own service access token, reused for 15 s; `GET /me`                                                                     |
+| `server-common/src/auth/`                 | Token checks, the IdP adapter (Keycloak), the gate and the backend checks. Copied to Catalog and Cart in phase 3                                                                                                |
+| Client                                    | The user and **Log out** in the header, the `401` → refresh → retry wrapper with a Web Lock shared by every tab, tabs kept in step with `BroadcastChannel('shop-auth')`, `newrelic.setUserId(sub)`              |
+
+**Settings.** `fes/.env` and `mock-backend/.env` hold `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET`: each server's
+copy of the secret in `keycloak/.env` (`SHELL_FES_SECRET`, `SHELL_BACKEND_SECRET`), and the two must match.
+`fes/.env` also holds `AUTH_COOKIE_KEY` (`openssl rand -hex 32`). Docker adds `AUTH_ENABLED`, `OIDC_ISSUER_URL`,
+`OIDC_INTERNAL_URL` and `PUBLIC_ORIGIN`.
+
+**Tests.** `server-common/src/auth/auth.test.ts`, `fes/src/login.test.ts` and `client/src/auth.test.ts` run
+with `pnpm test`. `tests/e2e/specs/sso.spec.ts` logs in through Keycloak's page on the Docker stack:
+
+```sh
+E2E_SSO=1 E2E_BASE_URL=https://shop.test TEST_USER_PASSWORD=… pnpm test:e2e
+```
+
+Without `E2E_SSO`, the suite is MVP-1's, with login off.
 
 ## Identity provider settings
 

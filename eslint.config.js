@@ -20,6 +20,12 @@ export default tseslint.config(
       // Express error handlers need all four parameters; unused ones start with `_`.
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
+      // openid-client marks allowInsecureRequests deprecated only so it stands out: servers need it to
+      // reach the IdP over plain HTTP inside Docker (MVP-2).
+      '@typescript-eslint/no-deprecated': [
+        'error',
+        { allow: [{ from: 'package', package: 'openid-client', name: 'allowInsecureRequests' }] },
+      ],
     },
   },
   {
