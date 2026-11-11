@@ -74,3 +74,10 @@ Shell's fallback. MFE-specific pages are in `specs/<name>.spec.ts`.
 
 `/test-error?kind=` with `render`, `event`, `promise`, `fes` or `backend` triggers each kind of error
 for checking New Relic and source maps.
+
+## Identity provider settings
+
+`keycloak/shop-shell.yaml` holds this repository's settings in the shop's identity provider (Keycloak realm `shop`):
+the `shell-fes` client, the only one that signs users in, and the `shell-backend` client with the Shell's roles. [shop-mfe-platform](https://github.com/arun9483/shop-mfe-platform) applies it on Docker when single
+sign-on runs, together with every other repository's file. Roles are granted through this repository's own groups. Copy `keycloak/.env.example` to `keycloak/.env` and set random secrets. Nothing in this repository reads it yet; see
+[MVP-2](https://github.com/arun9483/arun-mfe-platform/blob/main/docs/mvp-2-sso.md).
