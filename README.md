@@ -106,6 +106,23 @@ E2E_SSO=1 E2E_BASE_URL=https://shop.test TEST_USER_PASSWORD=… pnpm test:e2e
 
 Without `E2E_SSO`, the suite is MVP-1's, with login off.
 
+**When the IdP is down** (MVP-2 phase 5), every check fails closed: APIs answer `503` problem+json, pages a short
+HTML `503` ("Login cannot be checked right now"), and an expired login whose refresh answers `503` stays in the
+shop and says the data could not be loaded, rather than going to a login page that is down. Answers cached just
+before an outage stay valid for up to 15 s. Service routes and the router's operator token are checked offline
+with the IdP's cached keys, so they keep working until their token expires.
+
+**The IdP adapter contract.** `server-common/src/auth/idp/contract.ts` is the contract every IdP adapter must pass
+(ADR 0004): `pnpm test` runs it against a fake IdP, and shop-mfe-platform's `sso-check.sh` (check 19) runs it
+against the real Keycloak. ESLint refuses Keycloak's endpoints and claim names (`resource_access`,
+`/admin/realms/`, …) anywhere but `server-common/src/auth/idp/keycloak.ts`.
+
+**The outage test** stops Keycloak, so it runs on its own:
+
+```sh
+E2E_SSO=1 E2E_IDP_DOWN=1 E2E_BASE_URL=https://shop.test TEST_USER_PASSWORD=… pnpm test:e2e
+```
+
 ## Identity provider settings
 
 `keycloak/shop-shell.yaml` holds this repository's settings in the shop's identity provider (Keycloak realm `shop`):

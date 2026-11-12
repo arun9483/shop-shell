@@ -53,8 +53,10 @@ async function loadMfe(mfe: Mfe): Promise<LifeCycles> {
     if (!loginIsOn()) throw error;
     const status = await headStatus(mfe.entry);
     if (status === 401) {
-      if (await refreshFor(mfe.entry)) return importEntry(mfe, true);
-      goToLogin();
+      const outcome = await refreshFor(mfe.entry);
+      if (outcome === 'logged-in') return importEntry(mfe, true);
+      // Login cannot be checked right now: the "unavailable" fallback, not an IdP that is down.
+      if (outcome === 'login') goToLogin();
     } else if (status === 403) {
       noAccess.add(mfe.name);
       window.dispatchEvent(new CustomEvent(MFE_NO_ACCESS_EVENT, { detail: mfe.name }));

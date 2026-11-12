@@ -364,3 +364,24 @@ test.describe('backend to backend', () => {
     });
   }
 });
+
+test.describe('refresh in several tabs', () => {
+  test('two tabs refused at the same time lead to one refresh', async ({ context }) => {
+    const [first, second] = [await context.newPage(), await context.newPage()];
+    await login(first, 'alice', '/help');
+    await second.goto('/help');
+    await expect(second.getByText(names.alice)).toBeVisible();
+    const refreshes: number[] = [];
+    context.on('response', (res) => {
+      if (res.url() === `${origin}/auth/refresh`) refreshes.push(res.status());
+    });
+    await context.clearCookies({ name: 'shop_at' });
+    await Promise.all([
+      first.getByRole('link', { name: 'Home' }).click(),
+      second.getByRole('link', { name: 'Home' }).click(),
+    ]);
+    await expect(first.getByText('Welcome to the shop.')).toBeVisible();
+    await expect(second.getByText('Welcome to the shop.')).toBeVisible();
+    expect(refreshes).toEqual([204]);
+  });
+});

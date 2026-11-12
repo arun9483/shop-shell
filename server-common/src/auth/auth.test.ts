@@ -303,6 +303,18 @@ describe('fesGate (FES)', () => {
     expect(page.headers.location).toBe('/auth/login?returnTo=%2Fpage%3Fx%3D1');
   });
 
+  it('shows pages a short HTML 503 when login cannot be checked, never the page', async () => {
+    meStatus = 500;
+    const page = await request(fesApp())
+      .get('/page')
+      .set('cookie', `shop_at=${await token()}`);
+    expect(page.status).toBe(503);
+    expect(page.headers['content-type']).toContain('text/html');
+    expect(page.headers['cache-control']).toBe('no-store');
+    expect(page.text).toContain('Login cannot be checked right now');
+    meStatus = 200;
+  });
+
   it('answers 403 at once, without asking the backend, for a token not naming its backend', async () => {
     meStatus = 200;
     const before = meCalls;
