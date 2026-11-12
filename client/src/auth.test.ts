@@ -4,7 +4,7 @@ import { apiFetch } from './auth';
 let loggedIn: boolean;
 let refreshes: number;
 
-function stubServer(refreshWorks: boolean) {
+function stubServer(refreshWorks: boolean, refreshStatus?: number) {
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string, init?: RequestInit) => {
@@ -12,7 +12,9 @@ function stubServer(refreshWorks: boolean) {
         expect(init?.method).toBe('POST');
         refreshes++;
         if (refreshWorks) loggedIn = true;
-        return Promise.resolve(new Response(null, { status: refreshWorks ? 204 : 401 }));
+        return Promise.resolve(
+          new Response(null, { status: refreshStatus ?? (refreshWorks ? 204 : 401) }),
+        );
       }
       return Promise.resolve(
         loggedIn ? Response.json({ ok: true }) : new Response(null, { status: 401 }),
@@ -60,5 +62,14 @@ describe('apiFetch', () => {
     const res = await apiFetch('/api/shell/greeting');
     expect(res.status).toBe(401);
     expect(assign).toHaveBeenCalledWith('/auth/login?returnTo=%2Fhelp%3Fx%3D1');
+  });
+
+  it('stays on the page when login cannot be checked (refresh answers 503)', async () => {
+    stubServer(false, 503);
+    const assign = vi.fn();
+    vi.stubGlobal('location', { pathname: '/help', search: '', assign });
+    const res = await apiFetch('/api/shell/greeting');
+    expect(res.status).toBe(503);
+    expect(assign).not.toHaveBeenCalled();
   });
 });
