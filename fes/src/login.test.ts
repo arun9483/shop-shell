@@ -55,3 +55,22 @@ describe('login routes', () => {
     ]);
   });
 });
+
+describe('addresses under /auth that are not pages (MVP-2 verification, F1)', () => {
+  it.each(['/auth/logout', '/auth/refresh'])('GET %s is 405, POST only', async (path) => {
+    const res = await request(app()).get(path);
+    expect(res.status).toBe(405);
+    expect(res.headers.allow).toBe('POST');
+    expect(res.headers['cache-control']).toBe('no-store');
+  });
+
+  it('explains how to log out', async () => {
+    expect((await request(app()).get('/auth/logout')).text).toContain('use the Log out button');
+  });
+
+  it.each(['/auth', '/auth/nope'])('%s is a 404, not the app', async (path) => {
+    const res = await request(app()).get(path);
+    expect(res.status).toBe(404);
+    expect(res.headers['content-type']).toContain('application/problem+json');
+  });
+});
