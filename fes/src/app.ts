@@ -118,6 +118,10 @@ export function createApp({
   );
   // Missing files are 404s, not the app shell.
   app.use('/assets', notFound);
+  // Pages have no file extension. A missing file anywhere else (e.g. /favicon.ico) is a plain 404 too:
+  // never the app, and never through the login gate, where an expired login would start a login
+  // round-trip in the background for an image request (MVP-2 verification, F3).
+  app.get(/\.[^/]+$/, notFound);
   // Every other GET is a client route, including deep links into MFEs: logged in only, with auth on.
   if (auth) {
     // The page says login is on, so the client asks for the user only then: with login off it

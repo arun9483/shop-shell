@@ -385,3 +385,26 @@ test.describe('refresh in several tabs', () => {
     expect(refreshes).toEqual([204]);
   });
 });
+
+// MVP-2 verification findings F1 and F3.
+test.describe('addresses that are not pages', () => {
+  test('a missing file is a 404 and never starts a login, even with an expired login', async ({
+    page,
+    context,
+  }) => {
+    await login(page, 'alice');
+    await context.clearCookies({ name: 'shop_at' });
+    const res = await page.request.get('/favicon.ico', { maxRedirects: 0 });
+    expect(res.status()).toBe(404);
+    expect((await page.request.get('/favicon.svg')).status()).toBe(200);
+  });
+
+  test('GET /auth/logout says to use the button; unknown /auth addresses are 404', async ({
+    request,
+  }) => {
+    const logout = await request.get('/auth/logout');
+    expect(logout.status()).toBe(405);
+    expect(await logout.text()).toContain('use the Log out button');
+    expect((await request.get('/auth/nope')).status()).toBe(404);
+  });
+});

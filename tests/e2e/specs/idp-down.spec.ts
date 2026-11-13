@@ -53,6 +53,7 @@ test('with the IdP down: 503 everywhere, a plain page, no login redirect; then i
   const response = await other.goto('/catalog');
   expect(response?.status()).toBe(503);
   await expect(other.getByText('Login cannot be checked right now')).toBeVisible();
+  await expect(other.getByRole('link', { name: 'Try again' })).toHaveAttribute('href', '/catalog');
   await other.close();
 
   // An expired login: refresh answers 503, so the page says it could not load and stays in the shop.

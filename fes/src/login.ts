@@ -1,6 +1,7 @@
 import {
   checkAccessToken,
   clearCookie,
+  notFound,
   COOKIES,
   HttpError,
   readCookie,
@@ -197,6 +198,24 @@ export function loginRoutes({ idp, adapter, publicOrigin, sealer }: LoginOptions
           'location.replace(\'/\')</script><p>You are logged out. <a href="/">Continue</a></p>',
       );
   });
+
+  // Logout and refresh change state, so they take POST only: otherwise another site could end a
+  // user's session with a plain link. An address typed in the browser gets a page saying so (F1).
+  router.get(['/auth/logout', '/auth/refresh'], (req, res) => {
+    const text =
+      req.path === '/auth/logout'
+        ? 'To log out, use the Log out button in the shop.'
+        : 'This address is used by the shop itself, not opened in a browser.';
+    res
+      .status(405)
+      .set('Allow', 'POST')
+      .type('html')
+      .send(
+        `<!doctype html><title>Not a page</title><p>${text}</p><p><a href="/">Back to the shop</a></p>`,
+      );
+  });
+  // Any other /auth address is not part of the shop: a 404, never the app.
+  router.use('/auth', notFound);
 
   return router;
 }

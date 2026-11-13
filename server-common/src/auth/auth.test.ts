@@ -312,6 +312,11 @@ describe('fesGate (FES)', () => {
     expect(page.headers['content-type']).toContain('text/html');
     expect(page.headers['cache-control']).toBe('no-store');
     expect(page.text).toContain('Login cannot be checked right now');
+    // F6: a link back to the same address, escaped.
+    const odd = await request(fesApp())
+      .get('/page?a=1&b="x"')
+      .set('cookie', `shop_at=${await token()}`);
+    expect(odd.text).toContain('<a href="/page?a=1&#38;b=%22x%22">Try again</a>');
     meStatus = 200;
   });
 

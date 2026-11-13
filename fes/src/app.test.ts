@@ -146,3 +146,21 @@ describe('login marker on the page (MVP-2)', () => {
     expect(on.headers['cache-control']).toBe('no-cache');
   });
 });
+
+describe('missing files are never pages (MVP-2 verification, F3)', () => {
+  // A gate that sends every page to log in, as with an expired login.
+  const toLogin: express.RequestHandler = (_req, res) => {
+    res.redirect(302, '/auth/login');
+  };
+  const auth = { login: express.Router(), page: toLogin, api: toLogin };
+
+  it('answers a missing file with 404, not the app, with login on or off', async () => {
+    const on = createApp({ backendUrl, clientDist, version, backendTimeoutMs: 1000, auth });
+    for (const server of [app(), on]) {
+      const res = await request(server).get('/favicon.ico');
+      expect(res.status).toBe(404);
+      expect(res.text).not.toContain('<title>Shell</title>');
+    }
+    expect((await request(on).get('/catalog/42')).status).toBe(302);
+  });
+});
