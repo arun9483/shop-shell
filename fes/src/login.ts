@@ -4,7 +4,10 @@ import {
   notFound,
   COOKIES,
   HttpError,
+  IdpUnavailableError,
   readCookie,
+  TtlCache,
+  tryAgainPage,
   setCookie,
   loginAttemptCookie,
   type CookieSealer,
@@ -22,6 +25,10 @@ export interface LoginOptions {
   publicOrigin: string;
   /** Encrypts the refresh token, the ID token and each login attempt. */
   sealer: CookieSealer;
+  /** How long `/auth/login` waits for the IdP before saying login cannot be checked (F9). */
+  idpCheckTimeoutMs?: number;
+  /** How long one IdP check's answer is reused. */
+  idpCheckCacheMs?: number;
 }
 
 // A login attempt must finish within this time.
@@ -49,9 +56,17 @@ export function safeReturnTo(value: unknown): string {
  * The Shell FES's login lifecycle (MVP-2): the only place tokens are received, refreshed or cleared.
  * Sets the three session cookies together and clears them together (ADR 0003).
  */
-export function loginRoutes({ idp, adapter, publicOrigin, sealer }: LoginOptions): Router {
+export function loginRoutes({
+  idp,
+  adapter,
+  publicOrigin,
+  sealer,
+  idpCheckTimeoutMs = 2000,
+  idpCheckCacheMs = 5000,
+}: LoginOptions): Router {
   const router = Router();
   const callbackUrl = `${publicOrigin}/auth/callback`;
+  const idpChecks = new TtlCache<boolean>(idpCheckCacheMs);
 
   router.use('/auth', (_req, res, next) => {
     res.set('Cache-Control', 'no-store');
@@ -92,12 +107,55 @@ export function loginRoutes({ idp, adapter, publicOrigin, sealer }: LoginOptions
     );
   }
 
+  /**
+   * Whether the IdP answers now, asked inside the network where this server reaches it. The login
+   * page itself is the IdP's, so without this check a down IdP shows the browser a bare gateway error
+   * on the IdP's address instead of the shop's page (MVP-2 verification, F9).
+   */
+  function idpAnswers(): Promise<boolean> {
+    return idpChecks.get('idp', async () => {
+      const current = await reachIdp();
+      if (!current) return false;
+      const base = current.settings.internalUrl.replace(/\/$/, '');
+      try {
+        const res = await fetch(`${base}/.well-known/openid-configuration`, {
+          signal: AbortSignal.timeout(idpCheckTimeoutMs),
+        });
+        return res.ok;
+      } catch {
+        return false;
+      }
+    });
+  }
+
+  /** The IdP, or undefined when it cannot be reached; a wrong setting is still an error. */
+  async function reachIdp(): Promise<Idp | undefined> {
+    try {
+      return await idp();
+    } catch (error) {
+      if (error instanceof IdpUnavailableError) return undefined;
+      throw error;
+    }
+  }
+
+  // `none` is the user's own navigation (typed address, bookmark); covers every step of a redirect chain.
+  const fromShop = (req: Request) =>
+    ['same-origin', 'none'].includes(req.get('sec-fetch-site') ?? '');
+
+  const toLogin = (returnTo: string) => `/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
+
   router.get('/auth/login', async (req, res) => {
+    const returnTo = safeReturnTo(req.query.returnTo);
+    if (!(await idpAnswers())) {
+      // Try again goes to the page asked for, not here: the gate then decides afresh.
+      tryAgainPage(res, returnTo);
+      return;
+    }
     const { config } = ownClient(await idp());
     const verifier = client.randomPKCECodeVerifier();
     const state = client.randomState();
     const nonce = client.randomNonce();
-    const attempt: Attempt = { verifier, nonce, returnTo: safeReturnTo(req.query.returnTo) };
+    const attempt: Attempt = { verifier, nonce, returnTo };
     setCookie(
       res,
       loginAttemptCookie(state),
@@ -136,12 +194,7 @@ export function loginRoutes({ idp, adapter, publicOrigin, sealer }: LoginOptions
         expectedNonce: attempt.nonce,
       });
     } catch {
-      res.redirect(
-        302,
-        (await loggedIn(req))
-          ? attempt.returnTo
-          : `/auth/login?returnTo=${encodeURIComponent(attempt.returnTo)}`,
-      );
+      res.redirect(302, (await loggedIn(req)) ? attempt.returnTo : toLogin(attempt.returnTo));
       return;
     }
     await setSession(res, tokens);
@@ -170,6 +223,47 @@ export function loginRoutes({ idp, adapter, publicOrigin, sealer }: LoginOptions
     }
     await setSession(res, tokens);
     res.status(204).end();
+  });
+
+  /**
+   * A page load with an expired login (MVP-2 verification, F9): the gate sends pages here, as only
+   * `/auth/*` receives the refresh token. Refreshes on the server and goes back to the page, so the
+   * browser never visits the IdP while the refresh token is valid; an ended or missing login goes on
+   * to log in; an IdP that cannot answer gets the shop's `503` page. A GET, as it is a page load; so
+   * it refreshes only for a navigation the browser says started in the shop or from the user
+   * (`Sec-Fetch-Site`), and another site cannot make it refresh, e.g. to keep a session from timing
+   * out. Anything else, or no header, goes on to log in, as before F9.
+   */
+  router.get('/auth/resume', async (req, res) => {
+    const returnTo = safeReturnTo(req.query.returnTo);
+    const sealed = fromShop(req) ? readCookie(req, COOKIES.refreshToken.name) : undefined;
+    const refreshToken = sealed && (await sealer.open(sealed));
+    if (!refreshToken) {
+      res.redirect(302, toLogin(returnTo));
+      return;
+    }
+    const current = await reachIdp();
+    if (!current) {
+      tryAgainPage(res, returnTo);
+      return;
+    }
+    const { config } = ownClient(current);
+    let tokens: client.TokenEndpointResponse;
+    try {
+      tokens = await client.refreshTokenGrant(config, refreshToken);
+    } catch (error) {
+      if (error instanceof client.ResponseBodyError) {
+        // The IdP's session has ended.
+        clearSession(res);
+        res.redirect(302, toLogin(returnTo));
+        return;
+      }
+      // As POST /auth/refresh: any other failure means the IdP cannot answer now.
+      tryAgainPage(res, returnTo);
+      return;
+    }
+    await setSession(res, tokens);
+    res.redirect(302, returnTo);
   });
 
   router.post('/auth/logout', async (req, res) => {

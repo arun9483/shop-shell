@@ -152,6 +152,57 @@ test.describe('refresh', () => {
     expect(refreshes).toEqual([204]);
     expect((await cookie(context, 'shop_at'))?.path).toBe('/');
   });
+
+  test('a page load with an expired login is refreshed on the server, never visiting the IdP (F9)', async ({
+    page,
+    context,
+  }) => {
+    await login(page, 'alice');
+    const visited: string[] = [];
+    page.on('request', (req) => {
+      if (req.isNavigationRequest()) visited.push(req.url());
+    });
+    await context.clearCookies({ name: 'shop_at' });
+    await page.goto('/help?x=1');
+    await expect(page.getByRole('heading', { name: 'Help' })).toBeVisible();
+    expect(page.url()).toBe(`${origin}/help?x=1`);
+    expect(visited).toEqual([
+      `${origin}/help?x=1`,
+      `${origin}/auth/resume?returnTo=%2Fhelp%3Fx%3D1`,
+      `${origin}/help?x=1`,
+    ]);
+    expect((await cookie(context, 'shop_at'))?.path).toBe('/');
+  });
+
+  test('another site cannot make /auth/resume refresh (Sec-Fetch-Site)', async ({ page }) => {
+    await login(page, 'alice');
+    const resume = (site: string) =>
+      page.request.get('/auth/resume?returnTo=%2Fhelp', {
+        headers: { 'sec-fetch-site': site },
+        maxRedirects: 0,
+      });
+    for (const site of ['cross-site', 'same-site']) {
+      const res = await resume(site);
+      expect(res.headers().location, site).toBe('/auth/login?returnTo=%2Fhelp');
+      expect(res.headers()['set-cookie'], site).toBeUndefined();
+    }
+    const own = await resume('same-origin');
+    expect(own.headers().location).toBe('/help');
+    expect(own.headers()['set-cookie']).toMatch(/shop_at=/);
+  });
+
+  test('a page load with both tokens gone goes through resume to log in, then back', async ({
+    page,
+    context,
+  }) => {
+    await login(page, 'alice');
+    await context.clearCookies({ name: 'shop_at' });
+    await context.clearCookies({ name: 'shop_rt' });
+    // The IdP's own session is still there, so it sends the browser straight back.
+    await page.goto('/help');
+    await expect(page.getByRole('heading', { name: 'Help' })).toBeVisible();
+    expect(page.url()).toBe(`${origin}/help`);
+  });
 });
 
 test.describe('logout', () => {
