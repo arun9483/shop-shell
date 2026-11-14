@@ -289,7 +289,7 @@ describe('fesGate (FES)', () => {
     expect(res.body).toEqual({ me: { sub: 'user-1', roles: ['shell-user'] }, bearer: true });
   });
 
-  it('answers 401 to API calls and sends pages to log in without a valid token', async () => {
+  it('answers 401 to API calls and sends pages to resume the login without a valid token', async () => {
     expect((await request(fesApp()).get('/api/x')).status).toBe(401);
     expect(
       (
@@ -300,7 +300,8 @@ describe('fesGate (FES)', () => {
     ).toBe(401);
     const page = await request(fesApp()).get('/page?x=1');
     expect(page.status).toBe(302);
-    expect(page.headers.location).toBe('/auth/login?returnTo=%2Fpage%3Fx%3D1');
+    // F9: first to /auth/resume, which refreshes the login or goes on to log in.
+    expect(page.headers.location).toBe('/auth/resume?returnTo=%2Fpage%3Fx%3D1');
   });
 
   it('shows pages a short HTML 503 when login cannot be checked, never the page', async () => {

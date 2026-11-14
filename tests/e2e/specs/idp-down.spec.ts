@@ -1,5 +1,6 @@
 // Criterion 9 (MVP-2 phase 5): with the IdP down, every check fails closed (503), pages say so in plain
-// HTML, and an expired login is not sent to a login page that is down. Stops Keycloak, so it runs alone:
+// HTML, and an expired login is not sent to a login page that is down (F9: page loads too, whether
+// the refresh token is there or not). Stops Keycloak, so it runs alone:
 //
 //   E2E_SSO=1 E2E_IDP_DOWN=1 E2E_BASE_URL=https://shop.test TEST_USER_PASSWORD=… pnpm test:e2e
 import { execFileSync } from 'node:child_process';
@@ -61,6 +62,22 @@ test('with the IdP down: 503 everywhere, a plain page, no login redirect; then i
   await page.getByRole('link', { name: 'Home' }).click();
   await expect(page.getByText('The greeting could not be loaded.')).toBeVisible();
   expect(page.url().startsWith(origin)).toBe(true);
+
+  // F9: a page load with an expired login, then with no login at all, gets the shop's 503 page,
+  // never the IdP's address; Try again goes to the page asked for.
+  for (const cleared of [['shop_at'], ['shop_at', 'shop_rt']]) {
+    for (const name of cleared) await context.clearCookies({ name });
+    const tab = await context.newPage();
+    const loaded = await tab.goto('/catalog?x=1');
+    expect(loaded?.status(), cleared.join()).toBe(503);
+    expect(tab.url().startsWith(origin), cleared.join()).toBe(true);
+    await expect(tab.getByText('Login cannot be checked right now')).toBeVisible();
+    await expect(tab.getByRole('link', { name: 'Try again' })).toHaveAttribute(
+      'href',
+      '/catalog?x=1',
+    );
+    await tab.close();
+  }
 
   docker('start', keycloak);
   await expect
