@@ -8,7 +8,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { origin } from '../mfes.js';
 
 const keycloak = process.env.E2E_KEYCLOAK_CONTAINER ?? 'shop-keycloak-1';
-const idpOrigin = process.env.E2E_IDP_ORIGIN ?? 'https://shop.test:8443';
+const idpOrigin = process.env.E2E_IDP_ORIGIN ?? 'https://idp.test';
 const password = process.env.TEST_USER_PASSWORD ?? '';
 // The FES gate and the backend each reuse an answer for 15 s.
 const CACHES_MS = 16_000;
