@@ -3,14 +3,14 @@
 //
 //   E2E_SSO=1 E2E_BASE_URL=https://shop.test TEST_USER_PASSWORD=… pnpm test:e2e
 //
-// Users log in on the identity provider's own page (Keycloak, https://shop.test:8443) as alice (every
+// Users log in on the identity provider's own page (Keycloak, https://idp.test) as alice (every
 // unit's roles) or bob (no Catalog role).
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { origin } from '../mfes.js';
 import { expectNoAxeViolations } from './helpers.js';
 
 const password = process.env.TEST_USER_PASSWORD ?? '';
-const idpOrigin = process.env.E2E_IDP_ORIGIN ?? 'https://shop.test:8443';
+const idpOrigin = process.env.E2E_IDP_ORIGIN ?? 'https://idp.test';
 const names = { alice: 'Alice Test', bob: 'Bob Test' } as const;
 type User = keyof typeof names;
 
@@ -83,6 +83,31 @@ test.describe('logged in', () => {
       expect(c).toMatchObject({ httpOnly: true, secure: true, sameSite: 'Lax' });
     }
     expect(await page.evaluate(() => document.cookie)).not.toMatch(/shop_/);
+  });
+
+  test("the shop and the IdP never see each other's cookies: each has its own host (F4)", async ({
+    page,
+    context,
+  }) => {
+    // What the browser really sends. Playwright's context.cookies(url) matches domains by suffix and
+    // ignores host-only cookies, so it cannot answer this.
+    const sent = { shop: [] as string[], idp: [] as string[] };
+    page.on('request', async (req) => {
+      const from = new URL(req.url()).origin;
+      const side = from === idpOrigin ? 'idp' : from === origin ? 'shop' : undefined;
+      if (side) sent[side].push((await req.allHeaders()).cookie ?? '');
+    });
+    await login(page, 'alice');
+    await page.reload();
+    await expect(page.getByText('Alice Test')).toBeVisible();
+    expect(new URL(idpOrigin).host).not.toBe(new URL(origin).host);
+    expect(sent.idp.length).toBeGreaterThan(0);
+    expect(sent.shop.length).toBeGreaterThan(0);
+    for (const header of sent.idp) expect(header).not.toMatch(/shop_/);
+    for (const header of sent.shop) expect(header).not.toMatch(/KEYCLOAK_|KC_|AUTH_SESSION_ID/);
+    // Keycloak's own cookies exist: they stay with the IdP.
+    const idpCookies = (await context.cookies(`${idpOrigin}/realms/shop/`)).map((c) => c.name);
+    expect(idpCookies).toContain('KEYCLOAK_IDENTITY');
   });
 
   test('pages and API calls carry only shop_at', async ({ page }) => {
