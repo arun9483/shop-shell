@@ -11,6 +11,8 @@ import { expectNoAxeViolations } from './helpers.js';
 
 const password = process.env.TEST_USER_PASSWORD ?? '';
 const idpOrigin = process.env.E2E_IDP_ORIGIN ?? 'https://idp.test';
+// The tenant's realm (shop-mfe-platform's OIDC_REALM); the default tenant's is shop.
+const realm = process.env.OIDC_REALM ?? 'shop';
 const names = { alice: 'Alice Test', bob: 'Bob Test' } as const;
 type User = keyof typeof names;
 
@@ -106,7 +108,7 @@ test.describe('logged in', () => {
     for (const header of sent.idp) expect(header).not.toMatch(/shop_/);
     for (const header of sent.shop) expect(header).not.toMatch(/KEYCLOAK_|KC_|AUTH_SESSION_ID/);
     // Keycloak's own cookies exist: they stay with the IdP.
-    const idpCookies = (await context.cookies(`${idpOrigin}/realms/shop/`)).map((c) => c.name);
+    const idpCookies = (await context.cookies(`${idpOrigin}/realms/${realm}/`)).map((c) => c.name);
     expect(idpCookies).toContain('KEYCLOAK_IDENTITY');
   });
 
@@ -128,6 +130,34 @@ test.describe('logged in', () => {
       expect(header).toContain('shop_at=');
       expect(header).not.toMatch(/shop_rt=|shop_id=/);
     }
+  });
+
+  // MVP-3 phase 2, criterion 10: the Shell FES puts only the allowed public fields in the page. The
+  // secrets checked are the ones in this run's environment (source the units' .env files to check them).
+  test('the page holds only the allowed public settings and no secret', async ({ page }) => {
+    await login(page, 'alice');
+    const html = await (await page.request.get('/help')).text();
+    const json = /<script type="application\/json" id="app-config">(.*?)<\/script>/.exec(html)?.[1];
+    const fields = Object.keys(json ? (JSON.parse(json) as object) : {});
+    const allowed = [
+      'newRelicAccountId',
+      'newRelicAgentId',
+      'newRelicApplicationId',
+      'newRelicBrowserKey',
+      'newRelicTrustKey',
+    ];
+    expect(fields.filter((field) => !allowed.includes(field))).toEqual([]);
+    const secrets = [
+      'NEW_RELIC_LICENSE_KEY',
+      'NEW_RELIC_USER_API_KEY',
+      'OIDC_CLIENT_SECRET',
+      'AUTH_COOKIE_KEY',
+      'TEST_USER_PASSWORD',
+    ].flatMap((name) => {
+      const value = process.env[name];
+      return value && value.length >= 8 ? [[name, value] as const] : [];
+    });
+    for (const [name, value] of secrets) expect(html.includes(value), name).toBe(false);
   });
 
   test('/api/shell/me gives the user and the Shell roles, never a token or sid', async ({
@@ -340,7 +370,7 @@ test.describe('several tabs', () => {
     const [first, second] = [await context.newPage(), await context.newPage()];
     await login(first, 'alice');
     // Log out at the IdP directly, so the Shell sends no "logged-out" message, then log in as bob.
-    await second.goto(`${idpOrigin}/realms/shop/protocol/openid-connect/logout`);
+    await second.goto(`${idpOrigin}/realms/${realm}/protocol/openid-connect/logout`);
     await second.locator('#kc-logout').click();
     await second.goto('/auth/login');
     await fillLogin(second, 'bob');

@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -144,6 +144,43 @@ describe('login marker on the page (MVP-2)', () => {
     expect(on.status).toBe(200);
     expect(on.text).toContain('<meta name="shop-login" content="on">');
     expect(on.headers['cache-control']).toBe('no-cache');
+  });
+});
+
+describe('public settings on the page (MVP-3 phase 2)', () => {
+  const pass: express.RequestHandler = (_req, _res, next) => {
+    next();
+  };
+  const auth = { login: express.Router(), page: pass, api: pass };
+  const pageConfig = { newRelicApplicationId: '42', newRelicBrowserKey: 'browser-</script>' };
+  const script =
+    '<script type="application/json" id="app-config">' +
+    '{"newRelicApplicationId":"42","newRelicBrowserKey":"browser-\\u003c/script>"}</script>';
+
+  // The test page has no </head>, so the settings go right after the doctype, before anything else.
+  it('are in the head, escaped, with login on or off', async () => {
+    const off = createApp({ backendUrl, clientDist, version, backendTimeoutMs: 1000, pageConfig });
+    const on = createApp({
+      backendUrl,
+      clientDist,
+      version,
+      backendTimeoutMs: 1000,
+      auth,
+      pageConfig,
+    });
+    for (const server of [off, on]) {
+      const page = await request(server).get('/help');
+      expect(page.status).toBe(200);
+      expect(page.text.startsWith(`<!doctype html>${script}`)).toBe(true);
+      expect(page.text.match(/<\/script>/g)?.length).toBe(
+        (page.text.match(/<script/g) ?? []).length,
+      );
+    }
+  });
+
+  it('leave the page unchanged when there are none', async () => {
+    const page = await request(app()).get('/help');
+    expect(page.text).toBe(readFileSync(join(clientDist, 'index.html'), 'utf8'));
   });
 });
 
