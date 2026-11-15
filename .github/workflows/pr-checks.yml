@@ -26,7 +26,6 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Built first: the servers' types come from server-common's build.
       - run: pnpm build
       - run: pnpm format:check
       - run: pnpm lint

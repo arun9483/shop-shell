@@ -3,7 +3,6 @@ packages:
   - fes
   - mock-backend
   - edge
-  - server-common
   - packages/*
   - tests/e2e
 
@@ -24,6 +23,10 @@ saveExact: true
 
 # Supply-chain buffer: a version is installed only once it is a day old (pnpm 11's default).
 minimumReleaseAge: 1440
+# Our own packages, published by us: no need to wait a day for them.
+minimumReleaseAgeExclude:
+  - '@arun-dev/client'
+  - '@arun-dev/server'
 
 allowBuilds:
   esbuild: true

@@ -1,16 +1,13 @@
 import { resolve } from 'node:path';
 import {
-  backendAuth,
-  closeOnSignal,
   connectIdp,
   cookieSealer,
   fesGate,
   oidcSettingsFromEnv,
-  readVersion,
-  requiredEnv,
-} from '@shop-shell/server-common';
+  loginRoutes,
+} from '@arun-dev/server/auth';
+import { backendAuth, closeOnSignal, readVersion, requiredEnv } from '@arun-dev/server/http';
 import { createApp, type FesAuth } from './app.js';
-import { loginRoutes } from './login.js';
 
 const port = Number(process.env.PORT ?? 3001);
 const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:4001';

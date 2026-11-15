@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@arun-dev/client": "0.2.0",
     "@arun-dev/headless": "catalog:",
     "@arun-dev/tokens": "catalog:",
     "@arun-dev/ui": "catalog:",
@@ -19,8 +20,8 @@
     "single-spa": "catalog:"
   },
   "devDependencies": {
+    "@arun-dev/server": "0.1.0",
     "@newrelic/publish-sourcemap": "5.1.4",
-    "@shop-shell/server-common": "workspace:*",
     "@testing-library/dom": "10.4.2",
     "@testing-library/react": "16.3.3",
     "@types/react": "catalog:",

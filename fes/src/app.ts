@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import express, { type Express, type RequestHandler, type Router } from 'express';
+import { userBearer } from '@arun-dev/server/auth';
 import {
   forward,
   noBackendAuth,
@@ -9,9 +10,8 @@ import {
   notFound,
   problemHandler,
   traceResponse,
-  userBearer,
   type VersionInfo,
-} from '@shop-shell/server-common';
+} from '@arun-dev/server/http';
 
 /** Login for the shop (MVP-2), when `AUTH_ENABLED=true`. */
 export interface FesAuth {

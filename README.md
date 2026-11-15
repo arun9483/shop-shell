@@ -10,7 +10,6 @@ Requirements and decisions are in [arun-mfe-platform](https://github.com/arun948
 | `client/`              | React + single-spa root config, built with Vite                                  | —      |
 | `fes/`                 | Express FES: serves the client, `/api/shell/*`, health and version               | `3001` |
 | `mock-backend/`        | Stand-in for the Shell's backend service                                         | `4001` |
-| `server-common/`       | Trace context, problem+json, health and version for the servers                  | —      |
 | `packages/shell-stub/` | Published as `@arun-shop/shell-stub`: runs one MFE standalone, without the Shell | —      |
 | `tests/e2e/`           | Playwright + axe against the router; run on demand                               | —      |
 
@@ -89,7 +88,7 @@ on Docker, with Keycloak; the design is
 | `POST /auth/refresh`, `POST /auth/logout` | Same-origin only. Logout ends the IdP's session; the IdP then sends the browser to `/auth/logged-out`, which tells the other tabs                                                                                                                                                                                                                                                         |
 | FES gate                                  | Pages and `/api/shell/*` need a valid `shop_at`; the gate asks the backend's `/me`, reused for 15 s                                                                                                                                                                                                                                                                                       |
 | Backend                                   | Checks the token, then the user's session, account and Shell roles at the IdP with its own service access token, reused for 15 s; `GET /me`                                                                                                                                                                                                                                               |
-| `server-common/src/auth/`                 | Token checks, the IdP adapter (Keycloak), the gate and the backend checks, and the standalone development bypass. Catalog and Cart carry identical copies                                                                                                                                                                                                                                 |
+| Shared code                               | `@arun-dev/server` (`/http`, `/auth` with the login routes, gate, backend checks, development bypass; `/auth/keycloak`) and `@arun-dev/client` (`apiFetch`, theme storage), from [arun-web-foundation](https://github.com/arun9483/arun-web-foundation), as in Catalog and Cart                                                                                                           |
 | MFE loading                               | MFE entries need a login and a role too. After a failed load the Shell reads the entry's status: `401` → refresh and load once more; `403` → "You do not have access to …" for that MFE, the rest of the shop working                                                                                                                                                                     |
 | Client                                    | The user and **Log out** in the header, the `401` → refresh → retry wrapper with a Web Lock shared by every tab, tabs kept in step with `BroadcastChannel('shop-auth')`, `newrelic.setUserId(sub)`                                                                                                                                                                                        |
 
@@ -98,8 +97,8 @@ copy of the secret in `keycloak/.env` (`SHELL_FES_SECRET`, `SHELL_BACKEND_SECRET
 `fes/.env` also holds `AUTH_COOKIE_KEY` (`openssl rand -hex 32`). Docker adds `AUTH_ENABLED`, `OIDC_ISSUER_URL`,
 `OIDC_INTERNAL_URL` and `PUBLIC_ORIGIN`.
 
-**Tests.** `server-common/src/auth/auth.test.ts`, `fes/src/login.test.ts` and `client/src/auth.test.ts` run
-with `pnpm test`. `tests/e2e/specs/sso.spec.ts` logs in through Keycloak's page on the Docker stack:
+**Tests.** The login routes, checks and `apiFetch` are tested in arun-web-foundation; `pnpm test` here runs
+the FES, backend and client tests. `tests/e2e/specs/sso.spec.ts` logs in through Keycloak's page on the Docker stack:
 
 ```sh
 E2E_SSO=1 E2E_BASE_URL=https://shop.test TEST_USER_PASSWORD=… pnpm test:e2e
@@ -117,10 +116,10 @@ with the IdP's cached keys, so they keep working until their token expires.
 address is a `404`. A missing file (a path with an extension, such as `/favicon.ico`) is a plain `404`, never
 the app and never through the login gate.
 
-**The IdP adapter contract.** `server-common/src/auth/idp/contract.ts` is the contract every IdP adapter must pass
-(ADR 0004): `pnpm test` runs it against a fake IdP, and shop-mfe-platform's `sso-check.sh` (check 19) runs it
+**The IdP adapter contract.** `checkAdapterContract` in `@arun-dev/server/auth` is the contract every IdP adapter
+must pass (ADR 0004): arun-web-foundation's tests run it against a fake IdP, and shop-mfe-platform's `sso-check.sh` (check 19) runs it
 against the real Keycloak. ESLint refuses Keycloak's endpoints and claim names (`resource_access`,
-`/admin/realms/`, …) anywhere but `server-common/src/auth/idp/keycloak.ts`.
+`/admin/realms/`, …) in this repository: only `@arun-dev/server/auth/keycloak` knows Keycloak.
 
 **The outage test** stops Keycloak, so it runs on its own:
 
