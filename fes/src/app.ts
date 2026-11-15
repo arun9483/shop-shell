@@ -11,6 +11,8 @@ import {
   problemHandler,
   traceResponse,
   type VersionInfo,
+  appConfigScript,
+  type AppConfigValue,
 } from '@arun-dev/server/http';
 
 /** Login for the shop (MVP-2), when `AUTH_ENABLED=true`. */
@@ -35,15 +37,21 @@ export interface FesConfig {
   backendHeaders?: BackendHeaders;
   /** Off (MVP-1 behaviour) unless given. */
   auth?: FesAuth;
+  /**
+   * Public settings for the page, placed in its `<head>` by `appConfigScript` (MVP-3 phase 2): only the
+   * allowed fields of `publicConfig()`. None: the page is the built file, unchanged.
+   */
+  pageConfig?: Record<string, AppConfigValue>;
 }
 
 const NO_CACHE = 'no-cache';
 const LOGIN_MARKER = '<meta name="shop-login" content="on">';
 
-function withLoginMarker(html: string): string {
+function inHead(html: string, extra: string): string {
+  if (!extra) return html;
   return html.includes('</head>')
-    ? html.replace('</head>', `${LOGIN_MARKER}</head>`)
-    : html.replace(/^(<!doctype html>)?/i, `$1${LOGIN_MARKER}`);
+    ? html.replace('</head>', `${extra}</head>`)
+    : html.replace(/^(<!doctype html>)?/i, `$1${extra}`);
 }
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 
@@ -66,6 +74,7 @@ export function createApp({
   backendTimeoutMs,
   backendHeaders = noBackendAuth,
   auth,
+  pageConfig = {},
 }: FesConfig): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -123,18 +132,20 @@ export function createApp({
   // round-trip in the background for an image request (MVP-2 verification, F3).
   app.get(/\.[^/]+$/, notFound);
   // Every other GET is a client route, including deep links into MFEs: logged in only, with auth on.
-  if (auth) {
-    // The page says login is on, so the client asks for the user only then: with login off it
-    // makes no extra request (MVP-1). Read once: the client's files change only with a deploy.
-    let page: string | undefined;
-    app.get('/{*path}', auth.page, (_req, res) => {
-      page ??= withLoginMarker(readFileSync(join(clientDist, 'index.html'), 'utf8'));
-      res.set('Cache-Control', NO_CACHE).type('html').send(page);
-    });
-  }
-  app.get('/{*path}', (_req, res) => {
-    res.set('Cache-Control', NO_CACHE).sendFile(join(clientDist, 'index.html'));
-  });
+  // The page carries the public settings, and says login is on, so the client asks for the user only
+  // then: with login off it makes no extra request (MVP-1). Read once: the client's files change only
+  // with a deploy.
+  const config = Object.keys(pageConfig).length > 0 ? appConfigScript(pageConfig) : '';
+  let page: string | undefined;
+  const sendPage: express.RequestHandler = (_req, res) => {
+    page ??= inHead(
+      readFileSync(join(clientDist, 'index.html'), 'utf8'),
+      `${config}${auth ? LOGIN_MARKER : ''}`,
+    );
+    res.set('Cache-Control', NO_CACHE).type('html').send(page);
+  };
+  if (auth) app.get('/{*path}', auth.page, sendPage);
+  else app.get('/{*path}', sendPage);
   app.use(notFound);
   app.use(problemHandler);
   return app;

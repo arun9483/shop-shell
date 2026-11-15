@@ -1,39 +1,54 @@
-// Uploads every source map in dist to New Relic against its file's public URL, then deletes it so
-// no map is ever served. Without New Relic keys the maps are only deleted.
-import { readdirSync, rmSync } from 'node:fs';
-import { join, relative } from 'node:path';
+// The client's source maps, kept out of the image and uploaded per tenant at deploy (MVP-3 phase 2).
+//
+//   node scripts/sourcemaps.mjs keep     after `vite build`: moves every map from dist to sourcemaps/,
+//                                        so no map is ever served
+//   node scripts/sourcemaps.mjs upload   uploads sourcemaps/ to New Relic against PUBLIC_ORIGIN; run once
+//                                        per tenant. Without New Relic keys it uploads nothing.
+//
+import { mkdirSync, readdirSync, renameSync, rmSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 import sourcemaps from '@newrelic/publish-sourcemap';
 
 const dist = 'dist';
-const origin = process.env.PUBLIC_ORIGIN ?? 'http://localhost:3000';
-const apiKey = process.env.NEW_RELIC_USER_API_KEY;
-const applicationId = process.env.VITE_NEW_RELIC_APPLICATION_ID;
-const publish = promisify(sourcemaps.publishSourcemap);
+const kept = 'sourcemaps';
+const mapsIn = (dir) =>
+  readdirSync(dir, { recursive: true, encoding: 'utf8' }).filter((file) =>
+    file.endsWith('.js.map'),
+  );
 
-const maps = readdirSync(dist, { recursive: true, encoding: 'utf8' })
-  .filter((file) => file.endsWith('.js.map'))
-  .map((file) => join(dist, file));
-
-if (!apiKey || !applicationId) {
-  console.log(`sourcemaps: no New Relic keys, deleting ${maps.length} maps without upload`);
-}
-
-for (const map of maps) {
-  if (apiKey && applicationId) {
-    const javascriptUrl = `${origin}/${relative(dist, map).slice(0, -'.map'.length)}`;
+const command = process.argv[2];
+if (command === 'keep') {
+  rmSync(kept, { recursive: true, force: true });
+  const maps = mapsIn(dist);
+  for (const file of maps) {
+    mkdirSync(dirname(join(kept, file)), { recursive: true });
+    renameSync(join(dist, file), join(kept, file));
+  }
+  console.log(`sourcemaps: kept ${maps.length} maps in ${kept}/, none in ${dist}/`);
+} else if (command === 'upload') {
+  const base = process.env.PUBLIC_ORIGIN ?? 'http://localhost:3000';
+  const apiKey = process.env.NEW_RELIC_USER_API_KEY;
+  const applicationId = process.env.NEW_RELIC_BROWSER_APP_ID;
+  const maps = mapsIn(kept);
+  if (!apiKey || !applicationId) {
+    console.log(`sourcemaps: no New Relic keys, ${maps.length} maps not uploaded`);
+    process.exit(0);
+  }
+  const publish = promisify(sourcemaps.publishSourcemap);
+  for (const file of maps) {
+    const javascriptUrl = `${base}/${file.slice(0, -'.map'.length)}`;
     try {
-      await publish({ sourcemapPath: map, javascriptUrl, applicationId, apiKey });
+      await publish({ sourcemapPath: join(kept, file), javascriptUrl, applicationId, apiKey });
       console.log(`sourcemaps: uploaded ${javascriptUrl}`);
     } catch (error) {
-      if (error.message === 'Conflict') {
-        // Hashed names change with content, so this exact file's map is already in New Relic.
+      // Hashed names change with content, so this exact file's map is already in New Relic.
+      if (error.message === 'Conflict')
         console.log(`sourcemaps: already uploaded ${javascriptUrl}`);
-      } else {
-        // A failed upload (for example, placeholder keys) must not ship the map, so it is still deleted.
-        console.warn(`sourcemaps: upload failed for ${javascriptUrl}: ${error.message}`);
-      }
+      else console.warn(`sourcemaps: upload failed for ${javascriptUrl}: ${error.message}`);
     }
   }
-  rmSync(map);
+} else {
+  console.error('Usage: node scripts/sourcemaps.mjs keep|upload');
+  process.exit(1);
 }

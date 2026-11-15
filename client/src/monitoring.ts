@@ -1,15 +1,21 @@
+import { readAppConfig } from '@arun-dev/client';
 import { BrowserAgent } from '@newrelic/browser-agent/loaders/browser-agent';
 
 // The Pro+SPA agent: errors, browser traces and single-spa route changes. It starts before anything
 // else so it sees every error. MFEs never use it directly; they call the standard `reportError`.
-const env = import.meta.env;
+// Its values are the tenant's, read at runtime from the page: the Shell FES puts them there
+// (PUBLIC_NEW_RELIC_* in its environment), so one build serves every tenant.
+const config = readAppConfig();
+const text = (field: string): string | undefined => {
+  const value = config[field];
+  return typeof value === 'string' && value ? value : undefined;
+};
 
 function startAgent(): BrowserAgent | undefined {
-  if (!env.VITE_NEW_RELIC_LICENSE_KEY || !env.VITE_NEW_RELIC_APPLICATION_ID) return undefined;
-  const keys = {
-    licenseKey: env.VITE_NEW_RELIC_LICENSE_KEY,
-    applicationID: env.VITE_NEW_RELIC_APPLICATION_ID,
-  };
+  const licenseKey = text('newRelicBrowserKey');
+  const applicationID = text('newRelicApplicationId');
+  if (!licenseKey || !applicationID) return undefined;
+  const keys = { licenseKey, applicationID };
   return new BrowserAgent({
     init: {
       distributed_tracing: { enabled: true },
@@ -18,9 +24,9 @@ function startAgent(): BrowserAgent | undefined {
     },
     info: { beacon: 'bam.nr-data.net', errorBeacon: 'bam.nr-data.net', sa: 1, ...keys },
     loader_config: {
-      accountID: env.VITE_NEW_RELIC_ACCOUNT_ID,
-      trustKey: env.VITE_NEW_RELIC_TRUST_KEY,
-      agentID: env.VITE_NEW_RELIC_AGENT_ID,
+      accountID: text('newRelicAccountId'),
+      trustKey: text('newRelicTrustKey'),
+      agentID: text('newRelicAgentId'),
       ...keys,
     },
   });

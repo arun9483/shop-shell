@@ -31,14 +31,23 @@ run `pnpm install`, `pnpm build` and `pnpm start` there.
 
 Each package reads its own `.env`; copy `.env.example` to `.env`. The New Relic values in it are
 placeholders until the New Relic account is set up: with them nothing is reported and source map
-uploads fail, but the maps are still deleted.
+uploads fail.
+
+**One build for every tenant** (MVP-3 phase 2). The browser agent's values are not in the bundle: the
+FES puts them in the page as `<script type="application/json" id="app-config">`, from `PUBLIC_NEW_RELIC_*`
+in `fes/.env`, and the client reads them at start. Only the fields listed in `fes/src/public-config.ts` can
+reach the page. The build keeps the client's source maps in `client/sourcemaps/`, never in `dist` or an
+image; `deploy/upload-sourcemaps.sh` uploads them for one tenant (`PUBLIC_ORIGIN`, `NEW_RELIC_USER_API_KEY`,
+`NEW_RELIC_BROWSER_APP_ID`), and `deploy/build.sh` runs it when `PUBLIC_ORIGIN` is set. The Keycloak login
+URLs come from `$(env:PUBLIC_ORIGIN)` and `$(env:DEV_ORIGIN)`, the realm from `$(env:OIDC_REALM)`.
 
 Catalog and Cart run from their own repositories on ports `3002` and `3003`. Until they do, their
 routes show the Shell's fallback.
 
 ## Deploy
 
-`.github/workflows/deploy-staging.yml` deploys the Shell to staging on Cloud Run: on every push to
+`.github/workflows/deploy-staging.yml` (paused during MVP-3 phase 2; it still builds with the old
+`VITE_NEW_RELIC_*` values and needs updating before it runs again) deploys the Shell to staging on Cloud Run: on every push to
 `main` after lint, typecheck and tests pass, or by hand from any branch (**Actions → Deploy to staging →
 Run workflow**). It builds the client for staging (uploading its source maps), builds one image for the
 mock backend and one for the FES (`deploy/Dockerfile`), deploys the backend as a private service that

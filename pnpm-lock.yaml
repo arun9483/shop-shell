@@ -72,8 +72,8 @@ importers:
   client:
     dependencies:
       '@arun-dev/client':
-        specifier: 0.2.0
-        version: 0.2.0
+        specifier: 0.3.0
+        version: 0.3.0
       '@arun-dev/headless':
         specifier: 'catalog:'
         version: 4.28.1(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -97,8 +97,8 @@ importers:
         version: 6.0.3
     devDependencies:
       '@arun-dev/server':
-        specifier: 0.1.0
-        version: 0.1.0(express@5.3.0(supports-color@10.2.2))(jose@6.2.17)(newrelic@14.8.0(supports-color@10.2.2))(openid-client@6.8.9)
+        specifier: 0.2.0
+        version: 0.2.0(express@5.3.0(supports-color@10.2.2))(jose@6.2.17)(newrelic@14.8.0(supports-color@10.2.2))(openid-client@6.8.9)
       '@newrelic/publish-sourcemap':
         specifier: 5.1.4
         version: 5.1.4(supports-color@10.2.2)
@@ -133,8 +133,8 @@ importers:
   fes:
     dependencies:
       '@arun-dev/server':
-        specifier: 0.1.0
-        version: 0.1.0(express@5.3.0(supports-color@10.2.2))(jose@6.2.17)(newrelic@14.8.0(supports-color@10.2.2))(openid-client@6.8.9)
+        specifier: 0.2.0
+        version: 0.2.0(express@5.3.0(supports-color@10.2.2))(jose@6.2.17)(newrelic@14.8.0(supports-color@10.2.2))(openid-client@6.8.9)
       express:
         specifier: 5.3.0
         version: 5.3.0(supports-color@10.2.2)
@@ -167,8 +167,8 @@ importers:
   mock-backend:
     dependencies:
       '@arun-dev/server':
-        specifier: 0.1.0
-        version: 0.1.0(express@5.3.0(supports-color@10.2.2))(jose@6.2.17)(newrelic@14.8.0(supports-color@10.2.2))(openid-client@6.8.9)
+        specifier: 0.2.0
+        version: 0.2.0(express@5.3.0(supports-color@10.2.2))(jose@6.2.17)(newrelic@14.8.0(supports-color@10.2.2))(openid-client@6.8.9)
       express:
         specifier: 5.3.0
         version: 5.3.0(supports-color@10.2.2)
@@ -268,8 +268,8 @@ packages:
   '@apm-js-collab/tracing-hooks@0.13.3':
     resolution: {integrity: sha512-l/ScKzA7sg1hZKc3QMtbnA3blVkTteN3Yq97AejfFrEiR0S0lay3KmyJJ44p45EEVIGP85fLfki4a6OD/7Jb8w==}
 
-  '@arun-dev/client@0.2.0':
-    resolution: {integrity: sha512-JnNDBg9zz8Invue9V78S4wJWkeAD073IjUvSFXygrRnBDtPckpd/9RHQdwqRo8XnrX/QI8fhdSvlp4i/2TasQg==}
+  '@arun-dev/client@0.3.0':
+    resolution: {integrity: sha512-VQJQPzkAoimjPfV9b++gajdOEr//8u4fq49nDb/PNLpensFSTyJ2hLP4J18cGUGE3Wje5pejJTpzSmP7EIGiJw==}
 
   '@arun-dev/headless@4.28.1':
     resolution: {integrity: sha512-inCkXbmQoKv/Y46sQDhKezFdqct0xaBt/3xnJn1+5XS9+JUjU7T8KMUI3W2NSA1e42uoPVzT5TEGSXWfmGLXow==}
@@ -281,8 +281,8 @@ packages:
       '@types/react':
         optional: true
 
-  '@arun-dev/server@0.1.0':
-    resolution: {integrity: sha512-0sGtPBIXndwoo39T7fZzCFDF6QzGQxICbtA64mVrCxzgFwGXWQYZ00rckfW9obfXfdDnyAOUcEEPMbVleAn3Lw==}
+  '@arun-dev/server@0.2.0':
+    resolution: {integrity: sha512-jR8bTEi5XIBvRCtMKMipsoeERlk8YvyXTPNutNad2zVIBuSnyowyPbnCulu0EiPLFO+FnwUVmC7REdLcGSSCgA==}
     engines: {node: '>=24.22.1'}
     hasBin: true
     peerDependencies:
@@ -3097,7 +3097,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@arun-dev/client@0.2.0': {}
+  '@arun-dev/client@0.3.0': {}
 
   '@arun-dev/headless@4.28.1(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
@@ -3106,7 +3106,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.3.0
 
-  '@arun-dev/server@0.1.0(express@5.3.0(supports-color@10.2.2))(jose@6.2.17)(newrelic@14.8.0(supports-color@10.2.2))(openid-client@6.8.9)':
+  '@arun-dev/server@0.2.0(express@5.3.0(supports-color@10.2.2))(jose@6.2.17)(newrelic@14.8.0(supports-color@10.2.2))(openid-client@6.8.9)':
     dependencies:
       express: 5.3.0(supports-color@10.2.2)
       jose: 6.2.17

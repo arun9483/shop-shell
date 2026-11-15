@@ -1,6 +1,8 @@
-# Shell's settings in the shop's identity provider (Keycloak realm `shop`), applied by
-# shop-mfe-platform's settings importer (keycloak-config-cli). Secrets come from keycloak/.env.
-realm: shop
+# Shell's settings in the tenant's identity provider (Keycloak realm OIDC_REALM, default shop), applied
+# by shop-mfe-platform's settings importer (keycloak-config-cli). Secrets come from keycloak/.env.
+# PUBLIC_ORIGIN is the tenant's shop; DEV_ORIGIN a second allowed origin: the Shell's development server
+# for the default tenant, the tenant's own origin otherwise (shop-mfe-platform's compose.sso.yaml).
+realm: $(env:OIDC_REALM)
 
 clients:
   # The one login client: only the Shell FES signs users in.
@@ -13,15 +15,15 @@ clients:
     directAccessGrantsEnabled: false
     serviceAccountsEnabled: false
     redirectUris:
-      - https://shop.test/auth/callback
-      - http://localhost:3000/auth/callback
+      - $(env:PUBLIC_ORIGIN)/auth/callback
+      - $(env:DEV_ORIGIN)/auth/callback
     webOrigins:
-      - https://shop.test
-      - http://localhost:3000
+      - $(env:PUBLIC_ORIGIN)
+      - $(env:DEV_ORIGIN)
     attributes:
       pkce.code.challenge.method: S256
       client.use.lightweight.access.token.enabled: 'true'
-      post.logout.redirect.uris: https://shop.test/auth/logged-out##http://localhost:3000/auth/logged-out
+      post.logout.redirect.uris: $(env:PUBLIC_ORIGIN)/auth/logged-out##$(env:DEV_ORIGIN)/auth/logged-out
     protocolMappers:
       # Keycloak leaves sub out of lightweight access tokens unless a mapper adds it there.
       - name: sub in lightweight tokens

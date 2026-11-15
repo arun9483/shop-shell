@@ -130,6 +130,34 @@ test.describe('logged in', () => {
     }
   });
 
+  // MVP-3 phase 2, criterion 10: the Shell FES puts only the allowed public fields in the page. The
+  // secrets checked are the ones in this run's environment (source the units' .env files to check them).
+  test('the page holds only the allowed public settings and no secret', async ({ page }) => {
+    await login(page, 'alice');
+    const html = await (await page.request.get('/help')).text();
+    const json = /<script type="application\/json" id="app-config">(.*?)<\/script>/.exec(html)?.[1];
+    const fields = Object.keys(json ? (JSON.parse(json) as object) : {});
+    const allowed = [
+      'newRelicAccountId',
+      'newRelicAgentId',
+      'newRelicApplicationId',
+      'newRelicBrowserKey',
+      'newRelicTrustKey',
+    ];
+    expect(fields.filter((field) => !allowed.includes(field))).toEqual([]);
+    const secrets = [
+      'NEW_RELIC_LICENSE_KEY',
+      'NEW_RELIC_USER_API_KEY',
+      'OIDC_CLIENT_SECRET',
+      'AUTH_COOKIE_KEY',
+      'TEST_USER_PASSWORD',
+    ].flatMap((name) => {
+      const value = process.env[name];
+      return value && value.length >= 8 ? [[name, value] as const] : [];
+    });
+    for (const [name, value] of secrets) expect(html.includes(value), name).toBe(false);
+  });
+
   test('/api/shell/me gives the user and the Shell roles, never a token or sid', async ({
     page,
   }) => {

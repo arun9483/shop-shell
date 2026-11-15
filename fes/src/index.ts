@@ -6,8 +6,10 @@ import {
   oidcSettingsFromEnv,
   loginRoutes,
 } from '@arun-dev/server/auth';
+import { keycloakAdapter } from '@arun-dev/server/auth/keycloak';
 import { backendAuth, closeOnSignal, readVersion, requiredEnv } from '@arun-dev/server/http';
 import { createApp, type FesAuth } from './app.js';
+import { publicConfig } from './public-config.js';
 
 const port = Number(process.env.PORT ?? 3001);
 const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:4001';
@@ -18,14 +20,15 @@ const backendTimeoutMs = Number(process.env.BACKEND_TIMEOUT_MS ?? 3000);
 function login(): FesAuth | undefined {
   const settings = oidcSettingsFromEnv();
   if (!settings) return undefined;
-  const { idp, adapter } = connectIdp(settings);
+  const { idp, adapter } = connectIdp(settings, { keycloak: keycloakAdapter });
   const gate = fesGate({
     idp,
     adapter,
     // The Shell FES logs users in as its own client, so it accepts that client's tokens.
     loginClientId: requiredEnv('OIDC_CLIENT_ID'),
     backendUrl,
-    backendAudience: 'shell-backend',
+    // The backend's client at the IdP: its name in a token's aud.
+    backendAudience: process.env.BACKEND_AUDIENCE ?? 'shell-backend',
     backendTimeoutMs,
   });
   const routes = loginRoutes({
@@ -46,6 +49,7 @@ const server = createApp({
   // BACKEND_AUTH=google on Cloud Run, where the backend is private.
   backendHeaders: backendAuth(process.env.BACKEND_AUTH, backendUrl),
   ...(auth ? { auth } : {}),
+  pageConfig: publicConfig(),
 }).listen(port, () => {
   console.log(`shell FES on http://localhost:${port}${auth ? ' (login on)' : ''}`);
 });
