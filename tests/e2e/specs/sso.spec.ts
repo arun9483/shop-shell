@@ -11,6 +11,8 @@ import { expectNoAxeViolations } from './helpers.js';
 
 const password = process.env.TEST_USER_PASSWORD ?? '';
 const idpOrigin = process.env.E2E_IDP_ORIGIN ?? 'https://idp.test';
+// The tenant's realm (shop-mfe-platform's OIDC_REALM); the default tenant's is shop.
+const realm = process.env.OIDC_REALM ?? 'shop';
 const names = { alice: 'Alice Test', bob: 'Bob Test' } as const;
 type User = keyof typeof names;
 
@@ -106,7 +108,7 @@ test.describe('logged in', () => {
     for (const header of sent.idp) expect(header).not.toMatch(/shop_/);
     for (const header of sent.shop) expect(header).not.toMatch(/KEYCLOAK_|KC_|AUTH_SESSION_ID/);
     // Keycloak's own cookies exist: they stay with the IdP.
-    const idpCookies = (await context.cookies(`${idpOrigin}/realms/shop/`)).map((c) => c.name);
+    const idpCookies = (await context.cookies(`${idpOrigin}/realms/${realm}/`)).map((c) => c.name);
     expect(idpCookies).toContain('KEYCLOAK_IDENTITY');
   });
 
@@ -368,7 +370,7 @@ test.describe('several tabs', () => {
     const [first, second] = [await context.newPage(), await context.newPage()];
     await login(first, 'alice');
     // Log out at the IdP directly, so the Shell sends no "logged-out" message, then log in as bob.
-    await second.goto(`${idpOrigin}/realms/shop/protocol/openid-connect/logout`);
+    await second.goto(`${idpOrigin}/realms/${realm}/protocol/openid-connect/logout`);
     await second.locator('#kc-logout').click();
     await second.goto('/auth/login');
     await fillLogin(second, 'bob');

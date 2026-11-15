@@ -9,6 +9,8 @@ import { origin } from '../mfes.js';
 
 const keycloak = process.env.E2E_KEYCLOAK_CONTAINER ?? 'shop-keycloak-1';
 const idpOrigin = process.env.E2E_IDP_ORIGIN ?? 'https://idp.test';
+// The tenant's realm (shop-mfe-platform's OIDC_REALM); the default tenant's is shop.
+const realm = process.env.OIDC_REALM ?? 'shop';
 const password = process.env.TEST_USER_PASSWORD ?? '';
 // The FES gate and the backend each reuse an answer for 15 s.
 const CACHES_MS = 16_000;
@@ -84,7 +86,7 @@ test('with the IdP down: 503 everywhere, a plain page, no login redirect; then i
     .poll(
       async () =>
         (
-          await page.request.get(`${idpOrigin}/realms/shop/.well-known/openid-configuration`)
+          await page.request.get(`${idpOrigin}/realms/${realm}/.well-known/openid-configuration`)
         ).status(),
       { timeout: 120_000, intervals: [3_000] },
     )
