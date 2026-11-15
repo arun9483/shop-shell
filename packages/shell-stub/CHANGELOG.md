@@ -1,5 +1,11 @@
 # @arun-shop/shell-stub
 
+## 0.3.1
+
+### Patch Changes
+
+- 032314e: The theme switcher's storage and the page's no-flash script come from `@arun-dev/client`; same key (`shop-theme`) and behaviour.
+
 ## 0.3.0
 
 ### Minor Changes
