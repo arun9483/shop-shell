@@ -1,12 +1,12 @@
 import express, { type Express, type RequestHandler } from 'express';
+import { meHandler } from '@arun-dev/server/auth';
 import {
   healthRouter,
-  meHandler,
   notFound,
   problemHandler,
   traceResponse,
   type VersionInfo,
-} from '@shop-shell/server-common';
+} from '@arun-dev/server/http';
 
 /**
  * Stand-in for the Shell's backend service. Dev only; never deployed. With `requireUser` (MVP-2,

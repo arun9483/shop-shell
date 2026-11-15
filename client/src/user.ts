@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiFetch, goToLogin, loginIsOn } from './auth';
+import { apiFetch, channel as authChannel, goToLogin, loginIsOn, startLogout } from './auth';
 import { browserAgent } from './monitoring';
 
 /** The logged-in user as `/api/shell/me` gives it: OpenID Connect fields and the Shell's roles. */
@@ -10,13 +10,11 @@ export interface ShopUser {
   roles: string[];
 }
 
-/** Keeps every tab of the shop in step on login and logout. Messages carry no token. */
-export const AUTH_CHANNEL = 'shop-auth';
-
 type AuthMessage = { type: 'logged-in'; sub: string } | { type: 'logged-out' };
 
+/** Keeps every tab of the shop in step on login and logout. Messages carry no token. */
 const channel =
-  typeof BroadcastChannel === 'undefined' ? undefined : new BroadcastChannel(AUTH_CHANNEL);
+  typeof BroadcastChannel === 'undefined' ? undefined : new BroadcastChannel(authChannel);
 
 function isUser(value: unknown): value is ShopUser {
   return typeof value === 'object' && value !== null && typeof (value as ShopUser).sub === 'string';
@@ -82,9 +80,12 @@ export function useUser(): ShopUser | null | undefined {
 }
 
 /**
- * Before the logout form is sent: stop tagging events with the user. The other tabs are told by the
- * Shell FES's `/auth/logged-out` page, once the IdP's session has really ended.
+ * Before the logout form is sent: stop tagging events with the user, and stop this page from going
+ * to login (`startLogout`): a call answered after the logout response gets `401`, and a login
+ * navigation then would cancel the logout's redirects. The other tabs are told by the Shell FES's
+ * `/auth/logged-out` page, once the IdP's session has really ended.
  */
 export function announceLogout(): void {
+  startLogout();
   browserAgent?.setUserId(null);
 }

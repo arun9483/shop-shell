@@ -5,7 +5,7 @@ import {
   setThemePreference,
   THEME_PREFERENCES,
   type ThemePreference,
-} from './theme';
+} from '@arun-dev/client';
 
 const labels: Record<ThemePreference, string> = {
   light: 'Light',

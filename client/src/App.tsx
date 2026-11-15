@@ -6,6 +6,7 @@ import { activeMfe, MFE_ERROR_EVENT, MFE_NO_ACCESS_EVENT, MFE_ROOT_ID } from './
 import { NavLink, usePathname } from './routing';
 import { ThemeSwitcher } from './ThemeSwitcher';
 import { lazyWithTimeout } from './timeouts';
+import { urls } from './auth';
 import { announceLogout, useUser } from './user';
 
 // Each Shell feature is its own chunk, loaded on its first visit.
@@ -58,7 +59,7 @@ function UserMenu() {
   const user = useUser();
   if (!user) return null;
   return (
-    <form className={styles.user} method="post" action="/auth/logout" onSubmit={announceLogout}>
+    <form className={styles.user} method="post" action={urls.logout} onSubmit={announceLogout}>
       <span>{user.name ?? user.preferred_username}</span>
       <Button type="submit" variant="ghost">
         Log out

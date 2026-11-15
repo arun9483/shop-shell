@@ -1,3 +1,4 @@
+import { withTimeout } from '@arun-dev/client';
 import {
   addErrorHandler,
   registerApplication,
@@ -6,7 +7,7 @@ import {
   type LifeCycles,
 } from 'single-spa';
 import { goToLogin, headStatus, loginIsOn, refreshFor } from './auth';
-import { timeouts, withTimeout } from './timeouts';
+import { timeouts } from './timeouts';
 
 export interface Mfe {
   name: string;

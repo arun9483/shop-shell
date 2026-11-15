@@ -4,11 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Shop MFE standalone</title>
-    <!-- The saved theme (client/src/theme.ts), applied before the first paint so the page never flashes the other theme. -->
+    <!-- The saved theme, applied before the first paint so the page never flashes the other theme: themeNoFlashScript() from @arun-dev/client (src/theme.test.ts runs it). -->
     <script>
       try {
-        const theme = localStorage.getItem('shop-theme');
-        if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+        const t = localStorage.getItem('shop-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
       } catch {}
     </script>
     <!--shell-stub-config-->

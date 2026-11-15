@@ -277,6 +277,50 @@ test.describe('several tabs', () => {
     await onLoginPage(second);
   });
 
+  // The logout response clears the cookies while the page still runs, so a call it made just before
+  // is answered 401 (a cold page's Home greeting, often). That must not send the page to login: the
+  // navigation would cancel the logout's redirects, and /auth/logged-out, which tells the other
+  // tabs, would never load.
+  test('an API call answered 401 during logout does not stop the other tabs being told', async ({
+    context,
+  }) => {
+    const first = await context.newPage();
+    await login(first, 'alice', '/help');
+    const second = await context.newPage();
+    await second.goto('/help');
+    await expect(second.getByText(names.alice)).toBeVisible();
+
+    // The greeting is held until the logout response has arrived, then answered 401. The IdP's logout
+    // is held until the page has had time to act on that 401, so the race happens on every run.
+    let logoutAnswered!: () => void;
+    const answered = new Promise<void>((resolve) => (logoutAnswered = resolve));
+    let greetingAsked!: () => void;
+    const asked = new Promise<void>((resolve) => (greetingAsked = resolve));
+    let greetingRefused!: () => void;
+    const refused = new Promise<void>((resolve) => (greetingRefused = resolve));
+    first.on('response', (res) => {
+      if (new URL(res.url()).pathname === '/auth/logout') logoutAnswered();
+    });
+    await first.route('**/api/shell/greeting', async (route) => {
+      greetingAsked();
+      await answered;
+      await route.fulfill({ status: 401 });
+      greetingRefused();
+    });
+    await first.route(/\/protocol\/openid-connect\/logout\?/, async (route) => {
+      await refused;
+      // Long enough for a refresh and a login navigation, which would cancel this request.
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await route.continue().catch(() => undefined);
+    });
+    await first.getByRole('link', { name: 'Home' }).click();
+    await asked;
+    await first.getByRole('button', { name: 'Log out' }).click();
+
+    await onLoginPage(second);
+    await onLoginPage(first);
+  });
+
   test('logins started in two tabs both succeed', async ({ context }) => {
     const [first, second] = [await context.newPage(), await context.newPage()];
     await first.goto('/');
