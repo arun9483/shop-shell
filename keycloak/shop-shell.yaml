@@ -49,6 +49,10 @@ clients:
     standardFlowEnabled: false
     directAccessGrantsEnabled: false
     serviceAccountsEnabled: true
+    # The realm's usual default scopes, named because a client created with only optionalClientScopes
+    # gets none of them (a new realm, e.g. a new tenant's): without roles, its service tokens carry no
+    # roles and no audience.
+    defaultClientScopes: [service_account, web-origins, acr, profile, roles, basic, email]
     # Keycloak 26.8's admin API takes only tokens with this scope. Optional: the backend asks for it only
     # for admin API calls, so tokens it sends to other backends never carry admin API rights.
     optionalClientScopes: [kc-admin-api]
