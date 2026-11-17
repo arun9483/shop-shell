@@ -39,6 +39,9 @@ function unit(dir: string, fesPort: number, backendPort: number) {
 }
 
 const sso = process.env.E2E_SSO === '1';
+// MVP-3 phase 3: two tenants side by side (shop-mfe-platform's docker/tenant.sh), E2E_BASE_URL being
+// tenant A's origin: E2E_TENANTS=1, only tenants.spec.ts.
+const tenants = process.env.E2E_TENANTS === '1';
 // Stops and starts Keycloak, so it runs alone: E2E_SSO=1 E2E_IDP_DOWN=1.
 const idpDown = process.env.E2E_IDP_DOWN === '1';
 
@@ -46,19 +49,22 @@ export default defineConfig({
   testDir: 'specs',
   // Login (MVP-2): with E2E_SSO=1, only sso.spec.ts runs, through a stack with login on (the Docker
   // stack with compose.sso.yaml). Without it, sso.spec.ts is left out and MVP-1's specs run.
-  ...(sso
-    ? { testMatch: idpDown ? 'idp-down.spec.ts' : 'sso.spec.ts' }
-    : {
-        testIgnore: externalOrigin
-          ? [
-              'readiness.spec.ts',
-              'standalone.spec.ts',
-              'swap.spec.ts',
-              'sso.spec.ts',
-              'idp-down.spec.ts',
-            ]
-          : ['sso.spec.ts', 'idp-down.spec.ts'],
-      }),
+  ...(tenants
+    ? { testMatch: 'tenants.spec.ts' }
+    : sso
+      ? { testMatch: idpDown ? 'idp-down.spec.ts' : 'sso.spec.ts' }
+      : {
+          testIgnore: externalOrigin
+            ? [
+                'readiness.spec.ts',
+                'standalone.spec.ts',
+                'swap.spec.ts',
+                'sso.spec.ts',
+                'idp-down.spec.ts',
+                'tenants.spec.ts',
+              ]
+            : ['sso.spec.ts', 'idp-down.spec.ts', 'tenants.spec.ts'],
+        }),
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   reporter: process.env.CI ? 'github' : 'list',
