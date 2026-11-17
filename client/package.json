@@ -11,7 +11,7 @@
     "upload-sourcemaps": "node --env-file-if-exists=.env scripts/sourcemaps.mjs upload"
   },
   "dependencies": {
-    "@arun-dev/client": "0.3.0",
+    "@arun-dev/client": "1.0.0",
     "@arun-dev/headless": "catalog:",
     "@arun-dev/tokens": "catalog:",
     "@arun-dev/ui": "catalog:",
@@ -21,7 +21,7 @@
     "single-spa": "catalog:"
   },
   "devDependencies": {
-    "@arun-dev/server": "0.2.0",
+    "@arun-dev/server": "1.0.0",
     "@newrelic/publish-sourcemap": "5.1.4",
     "@testing-library/dom": "10.4.2",
     "@testing-library/react": "16.3.3",
